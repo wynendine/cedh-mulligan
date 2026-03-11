@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>EDH Mulligan Sim</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    .card-img { border-radius: 4.75% / 3.5%; }
+    .card-shadow { box-shadow: 0 4px 12px rgba(0,0,0,0.6); }
+    .card-selected { outline: 3px solid #f59e0b; outline-offset: 3px; }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    [x-cloak] { display: none !important; }
+    .skeleton { background: linear-gradient(90deg, #1f2937 25%, #374151 50%, #1f2937 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+  </style>
+</head>
+<body class="bg-gray-950 text-white min-h-screen select-none" x-data="app()" x-init="init()" x-cloak>
+
+  <!-- ── STICKY HEADER ── -->
+  <header class="sticky top-0 z-20 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800 px-4 py-3 flex items-center justify-between" style="max-width:100%">
+    <div>
+      <h1 class="text-lg font-bold text-purple-400 leading-none">EDH Mulligan Sim</h1>
+      <p class="text-xs text-gray-500 mt-0.5" x-show="phase === 'setup'">meta-weighted pod generator</p>
+      <p class="text-xs text-gray-400 mt-0.5 truncate max-w-64" x-show="phase === 'session'" x-text="commander"></p>
+    </div>
+    <button x-show="phase === 'session'" @click="goToSetup()" class="text-xs text-gray-500 hover:text-gray-300 border border-gray-700 rounded-lg px-3 py-1.5 flex-shrink-0">
+      ← Back
+    </button>
+  </header>
+
+  <!-- ── MAIN CONTENT ── -->
+  <main class="max-w-lg mx-auto px-4 pt-5 pb-40">
+
+    <!-- ══════════════════════════════════════
+         PHASE: SETUP
+    ══════════════════════════════════════ -->
+    <div x-show="phase === 'setup'" class="flex flex-col gap-5">
+
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Paste Your Decklist</label>
+          <span class="text-xs text-gray-600">Moxfield → Export → Copy</span>
+        </div>
+        <textarea
+          x-model="decklist"
+          rows="6"
+          placeholder="Commander (1)&#10;1 Atraxa, Praetors' Voice&#10;&#10;Deck (99)&#10;1 Sol Ring&#10;1 Command Tower&#10;..."
+          class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 text-sm font-mono resize-none"
+        ></textarea>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Meta Snapshot</label>
+        <select
+          x-model="timePeriod"
+          class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-purple-500 text-sm"
+        >
+          <option value="ONE_MONTH">Last Month</option>
+          <option value="THREE_MONTHS">Last 3 Months</option>
+          <option value="SIX_MONTHS">Last 6 Months</option>
+          <option value="ONE_YEAR">Last Year</option>
+          <option value="ALL_TIME">All Time</option>
+        </select>
+      </div>
+
+      <!-- Error -->
+      <div x-show="error" class="bg-red-950 border border-red-700 rounded-xl p-3 text-red-300 text-sm" x-text="error"></div>
+
+      <!-- How-to -->
+      <div class="bg-gray-900 rounded-xl p-4 text-sm text-gray-400 space-y-2">
+        <p class="text-gray-300 font-medium">How to get your decklist from Moxfield</p>
+        <p>1. Open your deck on Moxfield</p>
+        <p>2. Tap the <span class="text-gray-300">Export</span> button → <span class="text-gray-300">Copy to Clipboard</span></p>
+        <p>3. Paste it above and hit Generate</p>
+        <p class="pt-1 border-t border-gray-800 text-gray-500">Opponents are weighted by real edhtop16.com meta share — popular commanders appear more often.</p>
+      </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════
+         PHASE: SESSION
+    ══════════════════════════════════════ -->
+    <div x-show="phase === 'session'" class="flex flex-col gap-5">
+
+      <!-- ── SEAT ORDER ── -->
+      <div>
+        <div class="flex items-center justify-between mb-2.5">
+          <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Seat Order</h2>
+          <button
+            @click="rerollPod()"
+            :disabled="seats.length === 0"
+            class="text-xs text-purple-400 hover:text-purple-300 disabled:text-gray-600 disabled:cursor-not-allowed"
+          >Reroll Pod ↺</button>
+        </div>
+
+        <!-- Loading skeletons -->
+        <div x-show="seats.length === 0" class="grid grid-cols-4 gap-2">
+          <template x-for="i in 4">
+            <div>
+              <div class="skeleton h-3 rounded mb-1.5"></div>
+              <div class="skeleton card-img w-full" style="height: 100px;"></div>
+              <div class="skeleton h-2.5 rounded mt-1.5 mx-1"></div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Seats grid -->
+        <div x-show="seats.length > 0" class="grid grid-cols-4 gap-2">
+          <template x-for="seat in seats" :key="seat.seat">
+            <div
+              class="flex flex-col items-center cursor-pointer"
+              @click="modalCard = {name: seat.name, image_url: seat.image_url}"
+            >
+              <!-- Seat label -->
+              <div class="flex items-center gap-0.5 mb-1 h-4">
+                <span
+                  class="text-xs font-bold"
+                  :class="seat.isYou ? 'text-purple-400' : 'text-gray-500'"
+                  x-text="'S' + seat.seat"
+                ></span>
+                <span x-show="seat.seat === 1" class="text-yellow-400 text-xs">★</span>
+              </div>
+              <!-- Card image -->
+              <div
+                class="w-full"
+                :class="seat.isYou ? 'ring-2 ring-purple-500 rounded-xl' : ''"
+              >
+                <img
+                  :src="seat.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
+                  :alt="seat.name"
+                  class="card-img card-shadow w-full"
+                />
+              </div>
+              <!-- Label -->
+              <div class="text-center mt-1 w-full px-0.5">
+                <div x-show="seat.isYou" class="text-xs text-purple-400 font-semibold leading-tight">You</div>
+                <div x-show="!seat.isYou" class="text-xs text-gray-300 leading-tight truncate" x-text="seat.name.split(' / ')[0]"></div>
+                <div x-show="!seat.isYou" class="text-xs text-gray-600 leading-tight" x-text="seat.meta_share + '%'"></div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <p x-show="seats.length > 0" class="text-xs text-gray-600 text-center mt-2">
+          ★ goes first · you are in seat <span class="text-gray-400" x-text="seats.find(s => s.isYou)?.seat"></span>
+        </p>
+      </div>
+
+      <!-- ── DIVIDER ── -->
+      <div class="border-t border-gray-800"></div>
+
+      <!-- ── HAND STATUS BAR ── -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Opening Hand</h2>
+          <span
+            x-show="mulliganCount > 0"
+            class="bg-yellow-900/60 text-yellow-400 text-xs px-2 py-0.5 rounded-full font-medium"
+            x-text="'Mull ' + mulliganCount"
+          ></span>
+        </div>
+        <span class="text-xs text-gray-600" x-text="hand.length + ' cards'"></span>
+      </div>
+
+      <!-- ── INSTRUCTION BANNERS ── -->
+      <div
+        x-show="handState === 'selecting'"
+        class="bg-amber-950/60 border border-amber-700 rounded-xl px-3 py-2.5 text-sm text-amber-300 text-center"
+      >
+        Tap <span class="font-bold" x-text="cardsToBottom"></span>
+        card<span x-show="cardsToBottom !== 1">s</span> to put on the bottom
+        <span class="text-amber-500 ml-1">(<span x-text="selectedIndices.length"></span>/<span x-text="cardsToBottom"></span>)</span>
+      </div>
+
+      <div
+        x-show="handState === 'scrying'"
+        class="bg-blue-950/60 border border-blue-700 rounded-xl px-3 py-2.5 text-sm text-blue-300 text-center"
+      >
+        Scry 1 — keep on top or send to bottom?
+      </div>
+
+      <div
+        x-show="handState === 'kept'"
+        class="bg-green-950/60 border border-green-700 rounded-xl px-3 py-2.5 text-sm text-green-300 text-center"
+      >
+        Hand kept<span x-text="mulliganCount > 0 ? ' after ' + mulliganCount + ' mulligan' + (mulliganCount > 1 ? 's' : '') : ''"></span>
+        — draw cards to simulate the game
+      </div>
+
+      <!-- ── HAND SKELETON ── -->
+      <div x-show="handLoading" class="flex gap-2 overflow-x-hidden">
+        <template x-for="i in 7">
+          <div class="flex-shrink-0 skeleton card-img" style="width: 120px; height: 168px;"></div>
+        </template>
+      </div>
+
+      <!-- ── HAND CARDS (non-scry states) ── -->
+      <div
+        x-show="!handLoading && handState !== 'scrying'"
+        class="flex gap-2.5 overflow-x-auto scrollbar-hide pb-2"
+      >
+        <template x-for="(card, idx) in hand" :key="idx">
+          <div
+            class="flex-shrink-0 transition-transform duration-150 cursor-pointer"
+            :class="{
+              'card-selected rounded-xl -translate-y-3': selectedIndices.includes(idx),
+              'opacity-40': handState === 'selecting' && selectedIndices.length >= cardsToBottom && !selectedIndices.includes(idx)
+            }"
+            style="width: 120px;"
+            @click="tapCard(idx)"
+          >
+            <img
+              :src="card.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
+              :alt="card.name"
+              class="card-img card-shadow w-full"
+              style="min-height: 168px; background:#1f2937;"
+            />
+          </div>
+        </template>
+      </div>
+
+      <!-- ── SCRY CARD ── -->
+      <div x-show="!handLoading && handState === 'scrying'" class="flex flex-col items-center gap-2">
+        <!-- Mini hand -->
+        <div x-show="hand.length > 0" class="flex gap-1.5 overflow-x-auto scrollbar-hide w-full pb-1">
+          <template x-for="(card, idx) in hand" :key="idx">
+            <div class="flex-shrink-0 cursor-pointer" style="width:72px;" @click="modalCard = card">
+              <img :src="card.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'" class="card-img card-shadow w-full" />
+            </div>
+          </template>
+        </div>
+        <p class="text-xs text-gray-500">Your hand (<span x-text="hand.length"></span> cards) · scry card below:</p>
+        <div class="w-40 cursor-pointer" @click="modalCard = scryCard">
+          <img
+            :src="scryCard?.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
+            :alt="scryCard?.name"
+            class="card-img card-shadow w-full"
+          />
+          <div class="text-xs text-center text-gray-400 mt-1 px-1 truncate" x-text="scryCard?.name"></div>
+        </div>
+      </div>
+
+      <!-- ── DRAWN CARDS (game simulation, shown after keeping hand) ── -->
+      <div x-show="handState === 'kept' && drawnCards.length > 0">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Drawn This Game</h2>
+          <span class="text-xs text-gray-600" x-text="drawnCards.length + ' card' + (drawnCards.length !== 1 ? 's' : '')"></span>
+        </div>
+        <div class="flex gap-2.5 overflow-x-auto scrollbar-hide pb-2">
+          <template x-for="(card, idx) in drawnCards" :key="idx">
+            <div class="flex-shrink-0 cursor-pointer" style="width: 120px;" @click="modalCard = card">
+              <img
+                :src="card.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
+                :alt="card.name"
+                class="card-img card-shadow w-full"
+                style="min-height: 168px; background:#1f2937;"
+              />
+            </div>
+          </template>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ── FIXED BOTTOM ACTION BAR ── -->
+  <div class="fixed bottom-0 left-0 right-0 z-10 bg-gray-950/95 backdrop-blur-sm border-t border-gray-800 px-4 py-3">
+    <div class="max-w-lg mx-auto">
+
+      <!-- Setup: Start button -->
+      <div x-show="phase === 'setup'">
+        <button
+          @click="startSession()"
+          :disabled="!decklist.trim() || loading"
+          class="w-full bg-purple-600 hover:bg-purple-500 active:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-2xl py-4 font-semibold text-base transition-colors"
+        >
+          <span x-show="!loading">Generate Pod & Draw Opening Hand</span>
+          <span x-show="loading" class="flex items-center justify-center gap-2">
+            <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+            Loading deck & pod…
+          </span>
+        </button>
+      </div>
+
+      <!-- Session: state-specific buttons -->
+      <div x-show="phase === 'session'" class="flex flex-col gap-2">
+
+        <!-- drawn -->
+        <div x-show="handState === 'drawn' && !handLoading" class="flex gap-2.5">
+          <button
+            @click="keepHand()"
+            class="flex-1 bg-green-700 hover:bg-green-600 active:bg-green-800 rounded-2xl py-4 font-semibold text-base transition-colors"
+          >Keep Hand</button>
+          <button
+            @click="mulligan()"
+            class="flex-1 bg-orange-700 hover:bg-orange-600 active:bg-orange-800 rounded-2xl py-4 font-semibold text-base transition-colors"
+          >Mulligan</button>
+        </div>
+
+        <!-- selecting -->
+        <div x-show="handState === 'selecting' && !handLoading">
+          <button
+            @click="confirmSelection()"
+            :disabled="!selectionComplete"
+            class="w-full bg-purple-600 hover:bg-purple-500 active:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-2xl py-4 font-semibold text-base transition-colors"
+          >Confirm — Put Selected on Bottom</button>
+        </div>
+
+        <!-- scrying -->
+        <div x-show="handState === 'scrying' && !handLoading" class="flex gap-2.5">
+          <button
+            @click="scryKeep()"
+            class="flex-1 bg-blue-700 hover:bg-blue-600 active:bg-blue-800 rounded-2xl py-4 font-semibold text-base transition-colors"
+          >Keep on Top</button>
+          <button
+            @click="scryBottom()"
+            class="flex-1 bg-gray-700 hover:bg-gray-600 active:bg-gray-800 rounded-2xl py-4 font-semibold text-base transition-colors"
+          >Send to Bottom</button>
+        </div>
+
+        <!-- kept -->
+        <div x-show="handState === 'kept' && !handLoading" class="flex flex-col gap-2">
+          <button
+            @click="drawCard()"
+            :disabled="deck.length === 0 || drawingCard"
+            class="w-full bg-blue-700 hover:bg-blue-600 active:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed rounded-2xl py-3.5 font-semibold text-base transition-colors"
+          >
+            <span x-show="!drawingCard">
+              Draw Card
+              <span class="text-blue-300 font-normal text-sm ml-1">(<span x-text="deck.length"></span> left)</span>
+            </span>
+            <span x-show="drawingCard">Drawing…</span>
+          </button>
+          <div class="flex gap-2.5">
+            <button
+              @click="drawAgain()"
+              class="flex-1 bg-purple-700 hover:bg-purple-600 active:bg-purple-800 rounded-2xl py-3.5 font-semibold text-base transition-colors"
+            >New Hand</button>
+            <button
+              @click="rerollPod(); drawAgain()"
+              class="flex-1 bg-gray-700 hover:bg-gray-600 active:bg-gray-800 rounded-2xl py-3.5 font-semibold text-base transition-colors"
+            >New Pod</button>
+          </div>
+        </div>
+
+        <!-- spinner -->
+        <div x-show="handLoading" class="flex justify-center py-3">
+          <svg class="animate-spin h-6 w-6 text-purple-400" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+          </svg>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CARD MODAL ── -->
+  <div
+    x-show="modalCard"
+    x-transition:enter="transition ease-out duration-150"
+    x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100"
+    x-transition:leave="transition ease-in duration-100"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0"
+    class="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-6"
+    @click="modalCard = null"
+    @keyup.escape.window="modalCard = null"
+  >
+    <div class="max-w-xs w-full" @click.stop>
+      <img
+        :src="modalCard?.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
+        :alt="modalCard?.name"
+        class="card-img card-shadow w-full"
+      />
+      <p class="text-center text-gray-300 mt-3 text-sm" x-text="modalCard?.name"></p>
+      <button @click="modalCard = null" class="w-full mt-3 text-gray-500 hover:text-gray-300 text-sm py-2">Tap anywhere to close</button>
+    </div>
+  </div>
+
+  <script>
+  function app() {
+    return {
+      // UI
+      phase: 'setup',
+      loading: false,
+      error: '',
+      modalCard: null,
+
+      // Inputs
+      decklist: '',
+      timePeriod: 'THREE_MONTHS',
+
+      // Session
+      commander: '',
+      deckCards: [],
+      pod: [],
+      seats: [],          // [{seat, name, image_url, isYou, meta_share, win_rate}]
+      commanderImage: null,
+
+      // Hand
+      hand: [],
+      deck: [],
+      handState: 'drawn',   // drawn | selecting | scrying | kept
+      mulliganCount: 0,
+      selectedIndices: [],
+      scryCard: null,
+      handLoading: false,
+
+      // Draw simulation (after keeping hand)
+      drawnCards: [],
+      drawingCard: false,
+
+      // First mulligan is free in Commander: cardsToBottom = mulliganCount - 1
+      get cardsToBottom() { return Math.max(0, this.mulliganCount - 1); },
+      get selectionComplete() { return this.selectedIndices.length === this.cardsToBottom; },
+
+      async init() {
+        const saved = localStorage.getItem('edh-decklist');
+        if (saved) this.decklist = saved;
+        const period = localStorage.getItem('edh-time-period');
+        if (period) this.timePeriod = period;
+      },
+
+      async startSession() {
+        if (!this.decklist.trim() || this.loading) return;
+        this.loading = true;
+        this.error = '';
+        try {
+          const r = await fetch('/api/deck', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ decklist: this.decklist }),
+          });
+          if (!r.ok) {
+            const e = await r.json();
+            throw new Error(e.detail || 'Failed to parse deck.');
+          }
+          const data = await r.json();
+          this.commander = data.commander;
+          this.deckCards = data.cards;
+          localStorage.setItem('edh-decklist', this.decklist);
+          localStorage.setItem('edh-time-period', this.timePeriod);
+
+          // Fetch pod (with seat assignment) and first hand concurrently
+          await Promise.all([this.fetchPod(), this.drawOpeningHand()]);
+          this.phase = 'session';
+        } catch (e) {
+          this.error = e.message;
+        } finally {
+          this.loading = false;
+        }
+      },
+
+      async fetchPod() {
+        // Fetch commander image and pod opponents in parallel
+        const primaryCommander = this.commander.split(' / ')[0].trim();
+        const [podResp, imgMap] = await Promise.all([
+          fetch(`/api/pod?time_period=${this.timePeriod}&exclude=${encodeURIComponent(this.commander)}`),
+          this.fetchImages([primaryCommander]),
+        ]);
+        if (!podResp.ok) throw new Error('Failed to generate pod from edhtop16.');
+        const data = await podResp.json();
+        this.pod = data.opponents;
+        this.commanderImage = imgMap[primaryCommander] || null;
+
+        // Randomly assign seats 1-4 to all 4 players
+        const allPlayers = [
+          { name: this.commander, image_url: this.commanderImage, isYou: true, meta_share: null, win_rate: null },
+          ...data.opponents.map(o => ({ ...o, isYou: false })),
+        ];
+        const shuffled = this.shuffle(allPlayers);
+        this.seats = shuffled.map((p, i) => ({ ...p, seat: i + 1 }));
+      },
+
+      async rerollPod() {
+        this.seats = [];
+        this.pod = [];
+        try { await this.fetchPod(); }
+        catch (e) { this.error = e.message; }
+      },
+
+      shuffle(arr) {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      },
+
+      async fetchImages(names) {
+        const r = await fetch('/api/card-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ names }),
+        });
+        return r.json();
+      },
+
+      async drawOpeningHand() {
+        this.mulliganCount = 0;
+        this.drawnCards = [];
+        this.deck = this.shuffle(this.deckCards);
+        this.handLoading = true;
+        try {
+          const names = this.deck.splice(0, 7);
+          const imageMap = await this.fetchImages(names);
+          this.hand = names.map(name => ({ name, image_url: imageMap[name] || null }));
+          this.handState = 'drawn';
+          this.selectedIndices = [];
+        } finally {
+          this.handLoading = false;
+        }
+      },
+
+      tapCard(idx) {
+        if (this.handState === 'selecting') {
+          this.toggleSelect(idx);
+        } else if (this.handState !== 'scrying') {
+          this.modalCard = this.hand[idx];
+        }
+      },
+
+      toggleSelect(idx) {
+        const pos = this.selectedIndices.indexOf(idx);
+        if (pos !== -1) {
+          this.selectedIndices.splice(pos, 1);
+        } else if (this.selectedIndices.length < this.cardsToBottom) {
+          this.selectedIndices.push(idx);
+        }
+      },
+
+      keepHand() {
+        this.handState = 'kept';
+        this.drawnCards = [];
+      },
+
+      async mulligan() {
+        this.mulliganCount++;
+        // Return hand to deck and reshuffle
+        const returned = this.hand.map(c => c.name);
+        this.deck = this.shuffle([...this.deck, ...returned]);
+        this.hand = [];
+        this.handLoading = true;
+        try {
+          const names = this.deck.splice(0, 7);
+          const imageMap = await this.fetchImages(names);
+          this.hand = names.map(name => ({ name, image_url: imageMap[name] || null }));
+          this.selectedIndices = [];
+
+          if (this.cardsToBottom === 0) {
+            // First mulligan in Commander is free — skip selecting, go straight to scry
+            await this._doScry();
+          } else {
+            this.handState = 'selecting';
+          }
+        } finally {
+          this.handLoading = false;
+        }
+      },
+
+      async _doScry() {
+        const scryName = this.deck.shift();
+        const imageMap = await this.fetchImages([scryName]);
+        this.scryCard = { name: scryName, image_url: imageMap[scryName] || null };
+        this.handState = 'scrying';
+      },
+
+      async confirmSelection() {
+        if (!this.selectionComplete) return;
+        // Put selected cards on bottom of deck
+        this.deck.push(...this.selectedIndices.map(i => this.hand[i].name));
+        // Remove selected from hand
+        this.hand = this.hand.filter((_, i) => !this.selectedIndices.includes(i));
+        this.selectedIndices = [];
+        this.handLoading = true;
+        try {
+          await this._doScry();
+        } finally {
+          this.handLoading = false;
+        }
+      },
+
+      scryKeep() {
+        this.deck.unshift(this.scryCard.name);
+        this.scryCard = null;
+        this.handState = 'drawn'; // Back to drawn — can mulligan again
+      },
+
+      scryBottom() {
+        this.deck.push(this.scryCard.name);
+        this.scryCard = null;
+        this.handState = 'drawn';
+      },
+
+      async drawCard() {
+        if (this.deck.length === 0) return;
+        const name = this.deck.shift();
+        this.drawingCard = true;
+        try {
+          const imageMap = await this.fetchImages([name]);
+          this.drawnCards.push({ name, image_url: imageMap[name] || null });
+        } finally {
+          this.drawingCard = false;
+        }
+      },
+
+      async drawAgain() {
+        await this.drawOpeningHand();
+      },
+
+      goToSetup() {
+        this.phase = 'setup';
+        this.hand = [];
+        this.pod = [];
+        this.seats = [];
+        this.mulliganCount = 0;
+        this.error = '';
+        this.scryCard = null;
+        this.handState = 'drawn';
+        this.drawnCards = [];
+        this.commanderImage = null;
+      },
+    };
+  }
+  </script>
+</body>
+</html>
