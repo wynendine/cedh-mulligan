@@ -52,25 +52,59 @@
         ></textarea>
       </div>
 
+      <!-- Commander 1 -->
       <div class="flex flex-col gap-1 relative">
         <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Your Commander</label>
         <input
-          x-model="commanderInput"
-          @input="filterCommanders()"
-          @focus="filterCommanders()"
-          @blur="setTimeout(() => showSuggestions = false, 150)"
+          x-model="cmd1"
+          @input="filterCmd1()"
+          @focus="filterCmd1()"
+          @blur="setTimeout(() => showSug1 = false, 150)"
           type="text"
           placeholder="Search commanders…"
           class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 text-sm"
         />
-        <div
-          x-show="showSuggestions"
-          class="absolute left-0 right-0 top-full mt-1 bg-gray-800 border border-gray-700 rounded-xl overflow-hidden z-30 shadow-xl"
-          style="z-index:50"
-        >
-          <template x-for="name in commanderSuggestions" :key="name">
+        <div x-show="showSug1" class="absolute left-0 right-0 bg-gray-800 border border-gray-700 rounded-xl overflow-hidden shadow-xl" style="top:100%; margin-top:4px; z-index:50">
+          <template x-for="name in suggestions1" :key="name">
             <button
-              @mousedown.prevent="selectCommander(name)"
+              @mousedown.prevent="selectCmd1(name)"
+              class="w-full text-left px-4 py-2.5 text-sm text-white hover:bg-gray-700 border-b border-gray-700/50 last:border-0"
+              x-text="name"
+            ></button>
+          </template>
+        </div>
+      </div>
+
+      <!-- Partner toggle -->
+      <div class="flex items-center gap-3">
+        <button
+          @click="hasPartner = !hasPartner; if (!hasPartner) cmd2 = ''"
+          class="flex items-center gap-2 text-sm"
+          :class="hasPartner ? 'text-purple-400' : 'text-gray-500 hover:text-gray-300'"
+        >
+          <div class="w-9 h-5 rounded-full transition-colors flex items-center px-0.5" :class="hasPartner ? 'bg-purple-600' : 'bg-gray-700'">
+            <div class="w-4 h-4 rounded-full bg-white transition-transform" :class="hasPartner ? 'translate-x-4' : 'translate-x-0'"></div>
+          </div>
+          Playing with a partner commander
+        </button>
+      </div>
+
+      <!-- Commander 2 (partner) -->
+      <div x-show="hasPartner" class="flex flex-col gap-1 relative">
+        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Partner Commander</label>
+        <input
+          x-model="cmd2"
+          @input="filterCmd2()"
+          @focus="filterCmd2()"
+          @blur="setTimeout(() => showSug2 = false, 150)"
+          type="text"
+          placeholder="Search partner…"
+          class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 text-sm"
+        />
+        <div x-show="showSug2" class="absolute left-0 right-0 bg-gray-800 border border-gray-700 rounded-xl overflow-hidden shadow-xl" style="top:100%; margin-top:4px; z-index:50">
+          <template x-for="name in suggestions2" :key="name">
+            <button
+              @mousedown.prevent="selectCmd2(name)"
               class="w-full text-left px-4 py-2.5 text-sm text-white hover:bg-gray-700 border-b border-gray-700/50 last:border-0"
               x-text="name"
             ></button>
@@ -294,7 +328,7 @@
       <div x-show="phase === 'setup'">
         <button
           @click="startSession()"
-          :disabled="!decklist.trim() || !commanderInput.trim() || loading"
+          :disabled="!decklist.trim() || !cmd1.trim() || (hasPartner && !cmd2.trim()) || loading"
           class="w-full bg-purple-600 hover:bg-purple-500 active:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-2xl py-4 font-semibold text-base transition-colors"
         >
           <span x-show="!loading">Generate Pod & Draw Opening Hand</span>
@@ -401,11 +435,17 @@
 
       // Inputs
       decklist: '',
-      commanderInput: '',
+      cmd1: '',
+      cmd2: '',
+      hasPartner: false,
       timePeriod: 'THREE_MONTHS',
-      allCommanders: [],
-      commanderSuggestions: [],
-      showSuggestions: false,
+      allCommanders: [],       // full list from edhtop16 (includes "A / B" pair entries)
+      singleCommanders: [],    // names without " / "
+      partnerMap: {},          // {name: [partnerName, ...]}
+      suggestions1: [],
+      suggestions2: [],
+      showSug1: false,
+      showSug2: false,
 
       // Session
       commander: '',
@@ -431,34 +471,89 @@
       get cardsToBottom() { return Math.max(0, this.mulliganCount - 1); },
       get selectionComplete() { return this.selectedIndices.length === this.cardsToBottom; },
 
+      get commanderInput() {
+        const c1 = this.cmd1.trim();
+        const c2 = this.cmd2.trim();
+        return this.hasPartner && c2 ? `${c1} / ${c2}` : c1;
+      },
+
       async init() {
         const saved = localStorage.getItem('edh-decklist');
         if (saved) this.decklist = saved;
         const period = localStorage.getItem('edh-time-period');
         if (period) this.timePeriod = period;
         const cmd = localStorage.getItem('edh-commander');
-        if (cmd) this.commanderInput = cmd;
-        // Pre-fetch commander list for autocomplete
+        if (cmd) {
+          if (cmd.includes(' / ')) {
+            const [a, b] = cmd.split(' / ');
+            this.cmd1 = a.trim(); this.cmd2 = b.trim(); this.hasPartner = true;
+          } else {
+            this.cmd1 = cmd;
+          }
+        }
+        await this.loadCommanderList();
+      },
+
+      async loadCommanderList() {
         try {
           const r = await fetch(`/api/commanders?time_period=${this.timePeriod}`);
-          if (r.ok) { const d = await r.json(); this.allCommanders = d.commanders; }
+          if (!r.ok) return;
+          const d = await r.json();
+          this.allCommanders = d.commanders;
+          // Build single-commander list and partner map from pair entries
+          this.singleCommanders = d.commanders.filter(n => !n.includes(' / '));
+          this.partnerMap = {};
+          for (const name of d.commanders) {
+            if (name.includes(' / ')) {
+              const [a, b] = name.split(' / ').map(s => s.trim());
+              if (!this.partnerMap[a]) this.partnerMap[a] = new Set();
+              if (!this.partnerMap[b]) this.partnerMap[b] = new Set();
+              this.partnerMap[a].add(b);
+              this.partnerMap[b].add(a);
+            }
+          }
+          for (const k of Object.keys(this.partnerMap)) this.partnerMap[k] = [...this.partnerMap[k]];
         } catch {}
       },
 
-      filterCommanders() {
-        const q = this.commanderInput.trim().toLowerCase();
-        if (!q) { this.commanderSuggestions = []; this.showSuggestions = false; return; }
-        this.commanderSuggestions = this.allCommanders.filter(n => n.toLowerCase().includes(q)).slice(0, 8);
-        this.showSuggestions = this.commanderSuggestions.length > 0;
+      filterCmd1() {
+        const q = this.cmd1.trim().toLowerCase();
+        if (!q) { this.suggestions1 = []; this.showSug1 = false; return; }
+        // Show pair entries + singles that match
+        this.suggestions1 = this.allCommanders.filter(n => n.toLowerCase().includes(q)).slice(0, 8);
+        this.showSug1 = this.suggestions1.length > 0;
       },
 
-      selectCommander(name) {
-        this.commanderInput = name;
-        this.showSuggestions = false;
+      selectCmd1(name) {
+        if (name.includes(' / ')) {
+          // Partner pair selected — auto-split into both fields
+          const [a, b] = name.split(' / ').map(s => s.trim());
+          this.cmd1 = a; this.cmd2 = b; this.hasPartner = true;
+        } else {
+          this.cmd1 = name;
+          // If this commander has known partners, auto-enable partner toggle
+          if (this.partnerMap[name]?.length) this.hasPartner = true;
+        }
+        this.showSug1 = false;
+      },
+
+      filterCmd2() {
+        const q = this.cmd2.trim().toLowerCase();
+        if (!q) { this.suggestions2 = []; this.showSug2 = false; return; }
+        const known = this.partnerMap[this.cmd1.trim()] || [];
+        // Prefer known partners first, then fall back to all singles
+        const pool = known.length ? known : this.singleCommanders;
+        this.suggestions2 = pool.filter(n => n.toLowerCase().includes(q)).slice(0, 8);
+        this.showSug2 = this.suggestions2.length > 0;
+      },
+
+      selectCmd2(name) {
+        this.cmd2 = name;
+        this.showSug2 = false;
       },
 
       async startSession() {
-        if (!this.decklist.trim() || this.loading) return;
+        if (!this.decklist.trim() || !this.cmd1.trim() || this.loading) return;
         this.loading = true;
         this.error = '';
         try {
@@ -472,12 +567,12 @@
             throw new Error(e.detail || 'Failed to parse deck.');
           }
           const data = await r.json();
-          this.commander = this.commanderInput.trim() || data.commander;
+          this.commander = this.commanderInput || data.commander;
           // Remove commander card(s) from deck (Moxfield export includes them)
           const cmdNames = this.commander.split(' / ').map(n => n.trim().toLowerCase());
           this.deckCards = data.cards.filter(c => !cmdNames.includes(c.toLowerCase()));
           localStorage.setItem('edh-decklist', this.decklist);
-          localStorage.setItem('edh-commander', this.commanderInput.trim());
+          localStorage.setItem('edh-commander', this.commander);
           localStorage.setItem('edh-time-period', this.timePeriod);
 
           // Fetch pod (with seat assignment) and first hand concurrently
