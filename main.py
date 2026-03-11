@@ -123,7 +123,7 @@ async def _load_commander_cache(time_period: str) -> None:
         + time_period
         + ") { edges { node { name stats(filters: { timePeriod: "
         + time_period
-        + " }) { metaShare count winRate } } } } }"
+        + ", minSize: 50 }) { metaShare count winRate } } } } }"
     )
     async with httpx.AsyncClient() as client:
         resp = await client.post(

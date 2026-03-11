@@ -229,7 +229,8 @@
                   <div>
                     <div class="text-xs text-gray-300 leading-tight truncate" x-text="seat.name.split(' / ')[0]"></div>
                     <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ')" class="text-xs text-gray-500 leading-tight truncate" x-text="'+ ' + seat.name.split(' / ')[1]"></div>
-                    <div class="text-xs text-gray-600 leading-tight" x-text="seat.meta_share + '%'"></div>
+                    <div class="text-xs text-gray-600 leading-tight" x-text="seat.meta_share + '% meta'"></div>
+                    <div class="text-xs text-gray-600 leading-tight" x-text="seat.win_rate + '% win'"></div>
                   </div>
                 </template>
               </div>
