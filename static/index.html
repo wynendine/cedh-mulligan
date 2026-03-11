@@ -227,16 +227,28 @@
                 <template x-if="seat.isYou">
                   <div>
                     <div class="text-xs text-purple-400 font-semibold leading-tight">You</div>
-                    <div x-show="seat.meta_share !== null" class="text-xs text-gray-600 leading-tight" x-text="'MS: ' + seat.meta_share + '%'"></div>
-                    <div x-show="seat.win_rate !== null" class="text-xs text-gray-600 leading-tight" x-text="'WR: ' + seat.win_rate + '%'"></div>
+                    <div x-show="seat.meta_share !== null" class="text-xs leading-tight flex justify-center gap-0.5">
+                      <span class="text-purple-400">MS:</span>
+                      <span class="text-purple-200" x-text="seat.meta_share + '%'"></span>
+                    </div>
+                    <div x-show="seat.win_rate !== null" class="text-xs leading-tight flex justify-center gap-0.5">
+                      <span class="text-purple-400">WR:</span>
+                      <span class="text-purple-200" x-text="seat.win_rate + '%'"></span>
+                    </div>
                   </div>
                 </template>
                 <template x-if="!seat.isYou">
                   <div>
                     <div class="text-xs text-gray-300 leading-tight truncate" x-text="seat.name.split(' / ')[0]"></div>
                     <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ')" class="text-xs text-gray-500 leading-tight truncate" x-text="'+ ' + seat.name.split(' / ')[1]"></div>
-                    <div class="text-xs text-gray-600 leading-tight" x-text="'MS: ' + seat.meta_share + '%'"></div>
-                    <div class="text-xs text-gray-600 leading-tight" x-text="'WR: ' + seat.win_rate + '%'"></div>
+                    <div class="text-xs leading-tight flex justify-center gap-0.5">
+                      <span class="text-gray-300">MS:</span>
+                      <span class="text-gray-400" x-text="seat.meta_share + '%'"></span>
+                    </div>
+                    <div class="text-xs leading-tight flex justify-center gap-0.5">
+                      <span class="text-gray-300">WR:</span>
+                      <span class="text-gray-400" x-text="seat.win_rate + '%'"></span>
+                    </div>
                   </div>
                 </template>
               </div>
