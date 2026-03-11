@@ -535,14 +535,24 @@
         }
       },
 
-      keepHand() {
-        this.handState = 'kept';
+      async keepHand() {
         this.drawnCards = [];
+        if (this.mulliganCount === 0) {
+          // No mulligans taken — just keep
+          this.handState = 'kept';
+        } else if (this.cardsToBottom === 0) {
+          // Free first mulligan — no cards to put back, just scry
+          this.handLoading = true;
+          try { await this._doScry(); } finally { this.handLoading = false; }
+        } else {
+          // Put cardsToBottom cards back, then scry
+          this.handState = 'selecting';
+        }
       },
 
       async mulligan() {
         this.mulliganCount++;
-        // Return hand to deck and reshuffle
+        // Return hand to deck, reshuffle, draw 7 — that's it
         const returned = this.hand.map(c => c.name);
         this.deck = this.shuffle([...this.deck, ...returned]);
         this.hand = [];
@@ -552,13 +562,7 @@
           const imageMap = await this.fetchImages(names);
           this.hand = names.map(name => ({ name, image_url: imageMap[name] || null }));
           this.selectedIndices = [];
-
-          if (this.cardsToBottom === 0) {
-            // First mulligan in Commander is free — skip selecting, go straight to scry
-            await this._doScry();
-          } else {
-            this.handState = 'selecting';
-          }
+          this.handState = 'drawn'; // Always back to drawn — keep mulliganing or keep hand
         } finally {
           this.handLoading = false;
         }
@@ -589,13 +593,13 @@
       scryKeep() {
         this.deck.unshift(this.scryCard.name);
         this.scryCard = null;
-        this.handState = 'drawn'; // Back to drawn — can mulligan again
+        this.handState = 'kept';
       },
 
       scryBottom() {
         this.deck.push(this.scryCard.name);
         this.scryCard = null;
-        this.handState = 'drawn';
+        this.handState = 'kept';
       },
 
       async drawCard() {
