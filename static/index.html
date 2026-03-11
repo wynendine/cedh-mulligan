@@ -46,65 +46,6 @@
     ══════════════════════════════════════ -->
     <div x-show="phase === 'setup'" class="flex flex-col gap-5">
 
-      <!-- Commander 1 -->
-      <div class="flex flex-col gap-1 relative">
-        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Your Commander</label>
-        <input
-          x-model="cmd1"
-          @input="filterCmd1()"
-          @focus="filterCmd1()"
-          @blur="setTimeout(() => showSug1 = false, 150)"
-          type="text"
-          placeholder="Search commanders…"
-          class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 text-sm"
-        />
-        <div x-show="showSug1" class="absolute left-0 right-0 bg-gray-800 border border-gray-700 rounded-xl overflow-hidden shadow-xl" style="top:100%; margin-top:4px; z-index:50">
-          <template x-for="name in suggestions1" :key="name">
-            <button
-              @mousedown.prevent="selectCmd1(name)"
-              class="w-full text-left px-4 py-2.5 text-sm text-white hover:bg-gray-700 border-b border-gray-700/50 last:border-0"
-              x-text="name"
-            ></button>
-          </template>
-        </div>
-      </div>
-
-      <!-- Partner toggle -->
-      <div class="flex items-center gap-3">
-        <button
-          @click="hasPartner = !hasPartner; if (!hasPartner) cmd2 = ''"
-          class="flex items-center gap-2 text-sm"
-          :class="hasPartner ? 'text-purple-400' : 'text-gray-500 hover:text-gray-300'"
-        >
-          <div class="w-9 h-5 rounded-full transition-colors flex items-center px-0.5" :class="hasPartner ? 'bg-purple-600' : 'bg-gray-700'">
-            <div class="w-4 h-4 rounded-full bg-white transition-transform" :class="hasPartner ? 'translate-x-4' : 'translate-x-0'"></div>
-          </div>
-          Playing with a partner commander
-        </button>
-      </div>
-
-      <!-- Commander 2 (partner) -->
-      <div x-show="hasPartner" class="flex flex-col gap-1 relative">
-        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Partner Commander</label>
-        <input
-          x-model="cmd2"
-          @input="filterCmd2()"
-          @focus="filterCmd2()"
-          @blur="setTimeout(() => showSug2 = false, 150)"
-          type="text"
-          placeholder="Search partner…"
-          class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 text-sm"
-        />
-        <div x-show="showSug2" class="absolute left-0 right-0 bg-gray-800 border border-gray-700 rounded-xl overflow-hidden shadow-xl" style="top:100%; margin-top:4px; z-index:50">
-          <template x-for="name in suggestions2" :key="name">
-            <button
-              @mousedown.prevent="selectCmd2(name)"
-              class="w-full text-left px-4 py-2.5 text-sm text-white hover:bg-gray-700 border-b border-gray-700/50 last:border-0"
-              x-text="name"
-            ></button>
-          </template>
-        </div>
-      </div>
 
       <div class="flex flex-col gap-1">
         <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Load from Moxfield URL</label>
@@ -160,11 +101,9 @@
 
       <!-- How-to -->
       <div class="bg-gray-900 rounded-xl p-4 text-sm text-gray-400 space-y-2">
-        <p class="text-gray-300 font-medium">How to get your decklist from Moxfield</p>
-        <p>1. Open your deck on Moxfield</p>
-        <p>2. Select your commander(s) above</p>
-        <p>3. Tap the <span class="text-gray-300">Export</span> button → <span class="text-gray-300">Copy for Moxfield</span></p>
-        <p>4. Paste it above and hit Generate</p>
+        <p class="text-gray-300 font-medium">How to load your decklist</p>
+        <p>Option A: Paste a Moxfield URL above and hit Load</p>
+        <p>Option B: On Moxfield, tap <span class="text-gray-300">Export</span> → <span class="text-gray-300">Copy for Moxfield</span>, then paste below</p>
         <p class="pt-1 border-t border-gray-800 text-gray-500">Opponents are weighted by real edhtop16.com meta share — popular commanders appear more often.</p>
       </div>
 
@@ -383,7 +322,7 @@
       <div x-show="phase === 'setup'">
         <button
           @click="startSession()"
-          :disabled="!decklist.trim() || !cmd1.trim() || (hasPartner && !cmd2.trim()) || loading"
+          :disabled="!decklist.trim() || loading"
           class="w-full bg-purple-600 hover:bg-purple-500 active:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-2xl py-4 font-semibold text-base transition-colors"
         >
           <span x-show="!loading">Generate Pod & Draw Opening Hand</span>
