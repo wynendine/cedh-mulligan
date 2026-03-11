@@ -247,7 +247,7 @@
       </div>
 
       <!-- ── HAND SKELETON ── -->
-      <div x-show="handLoading" class="flex overflow-x-hidden">
+      <div x-show="handLoading" class="flex overflow-x-hidden" style="width: 342px; margin: 0 auto;">
         <template x-for="i in 7">
           <div class="flex-shrink-0 skeleton card-img" style="width: 90px; height: 126px; margin-right: -48px;"></div>
         </template>
@@ -257,6 +257,7 @@
       <div
         x-show="!handLoading"
         class="flex pb-4"
+        style="width: 342px; margin: 0 auto;"
       >
         <template x-for="(card, idx) in hand" :key="idx">
           <div
