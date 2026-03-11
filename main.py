@@ -206,7 +206,8 @@ async def _fetch_images_fuzzy(names: list[str]) -> None:
     """Fetch and cache Scryfall images for a list of card names using fuzzy lookup.
     Only caches successes — failed fetches are not stored so they are retried later.
     """
-    uncached = [n for n in names if n not in _image_cache]
+    # Deduplicate while preserving order so each name is fetched at most once
+    uncached = list(dict.fromkeys(n for n in names if n not in _image_cache))
     if not uncached:
         return
     async with httpx.AsyncClient() as client:
@@ -258,6 +259,8 @@ async def get_pod(time_period: str = "THREE_MONTHS", exclude: str = "", commande
     if user_img_names:
         result["commander_image_url"] = _image_cache.get(user_img_names[0])
         result["commander_image_url2"] = _image_cache.get(user_img_names[1]) if len(user_img_names) > 1 else None
+        # Return the normalized commander name so the frontend name/image order matches
+        result["normalized_commander"] = normalize_partner_order(commander)
 
     return result
 

@@ -594,6 +594,8 @@
         this.pod = data.opponents;
         this.commanderImage = data.commander_image_url || null;
         this.commanderImage2 = data.commander_image_url2 || null;
+        // Sync commander name to the normalized order so names match images
+        if (data.normalized_commander) this.commander = data.normalized_commander;
 
         // Randomly assign seats 1-4 to all 4 players
         const allPlayers = [
