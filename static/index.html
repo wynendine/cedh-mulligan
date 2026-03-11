@@ -249,14 +249,14 @@
       <!-- ── HAND SKELETON ── -->
       <div x-show="handLoading" class="flex overflow-x-hidden">
         <template x-for="i in 7">
-          <div class="flex-shrink-0 skeleton card-img" style="width: 110px; height: 154px; margin-right: -32px;"></div>
+          <div class="flex-shrink-0 skeleton card-img" style="width: 90px; height: 126px; margin-right: -48px;"></div>
         </template>
       </div>
 
       <!-- ── HAND CARDS ── -->
       <div
         x-show="!handLoading"
-        class="flex overflow-x-auto scrollbar-hide pb-4"
+        class="flex pb-4"
       >
         <template x-for="(card, idx) in hand" :key="idx">
           <div
@@ -266,8 +266,8 @@
               'opacity-40': handState === 'selecting' && selectedIndices.length >= cardsToBottom && !selectedIndices.includes(idx)
             }"
             :style="{
-              width: '110px',
-              marginRight: idx < hand.length - 1 ? '-32px' : '0',
+              width: '90px',
+              marginRight: idx < hand.length - 1 ? '-48px' : '0',
               position: 'relative',
               zIndex: selectedIndices.includes(idx) ? 20 : idx + 1
             }"
@@ -277,7 +277,7 @@
               :src="card.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
               :alt="card.name"
               class="card-img card-shadow w-full"
-              style="min-height: 154px; background:#1f2937;"
+              style="min-height: 126px; background:#1f2937;"
             />
           </div>
         </template>
@@ -289,13 +289,13 @@
           <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Drawn This Game</h2>
           <span class="text-xs text-gray-600" x-text="drawnCards.length + ' card' + (drawnCards.length !== 1 ? 's' : '')"></span>
         </div>
-        <div class="flex overflow-x-auto scrollbar-hide pb-4">
+        <div class="flex pb-4">
           <template x-for="(card, idx) in drawnCards" :key="idx">
             <div
               class="flex-shrink-0 cursor-pointer"
               :style="{
-                width: '110px',
-                marginRight: idx < drawnCards.length - 1 ? '-32px' : '0',
+                width: '90px',
+                marginRight: idx < drawnCards.length - 1 ? '-48px' : '0',
                 position: 'relative',
                 zIndex: idx + 1
               }"
@@ -305,7 +305,7 @@
                 :src="card.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
                 :alt="card.name"
                 class="card-img card-shadow w-full"
-                style="min-height: 154px; background:#1f2937;"
+                style="min-height: 126px; background:#1f2937;"
               />
             </div>
           </template>
