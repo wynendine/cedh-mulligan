@@ -285,37 +285,11 @@ async def get_pod(time_period: str = "THREE_MONTHS", exclude: str = "", commande
 
 @app.post("/api/card-images")
 async def get_card_images(request: CardNamesRequest):
-    result: dict = {}
-    uncached: list[tuple[str, str]] = []
-
-    for name in request.names:
-        primary = name.split(" / ")[0].strip()
-        if primary in _image_cache:
-            result[name] = _image_cache[primary]
-        else:
-            uncached.append((name, primary))
-
-    if uncached:
-        identifiers = [{"name": primary} for _, primary in uncached]
-        async with httpx.AsyncClient() as client:
-            try:
-                resp = await client.post(
-                    "https://api.scryfall.com/cards/collection",
-                    json={"identifiers": identifiers},
-                    headers={"Content-Type": "application/json"},
-                    timeout=10.0,
-                )
-                scry_data = resp.json().get("data", [])
-                scry_lookup = {c["name"]: extract_image_url(c) for c in scry_data}
-            except Exception:
-                scry_lookup = {}
-
-        for name, primary in uncached:
-            url = scry_lookup.get(primary)
-            _image_cache[primary] = url
-            result[name] = url
-
-    return result
+    # Use fuzzy lookup for all cards — handles new cards, DFCs, and name variations.
+    # _fetch_images_fuzzy only caches successes, so failures are retried on next request.
+    primaries = [name.split(" / ")[0].strip() for name in request.names]
+    await _fetch_images_fuzzy(primaries)
+    return {name: _image_cache.get(name.split(" / ")[0].strip()) for name in request.names}
 
 
 @app.get("/")
