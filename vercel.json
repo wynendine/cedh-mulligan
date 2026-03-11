@@ -1,6 +1,11 @@
 {
   "builds": [
     {
+      "src": "api/moxfield.js",
+      "use": "@vercel/node",
+      "config": { "runtime": "edge" }
+    },
+    {
       "src": "main.py",
       "use": "@vercel/python",
       "config": {
@@ -10,6 +15,7 @@
     }
   ],
   "routes": [
+    { "src": "/api/moxfield", "dest": "/api/moxfield.js" },
     { "src": "/(.*)", "dest": "main.py" }
   ]
 }
