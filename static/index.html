@@ -195,14 +195,14 @@
                 class="w-full"
                 :class="seat.isYou ? 'ring-2 ring-purple-500 rounded-xl' : ''"
               >
-                <!-- Partner pair: stacked -->
-                <div x-show="seat.image_url2" class="relative w-full" style="padding-bottom: 148%;">
-                  <!-- Back card (second partner, slightly below) -->
+                <!-- Partner pair: fanned -->
+                <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ')" class="relative w-full" style="padding-bottom: 148%;">
+                  <!-- Back card (second partner, rotated behind) -->
                   <img
                     :src="seat.image_url2 || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
                     :alt="seat.name"
                     class="card-img card-shadow absolute"
-                    style="width: 100%; top: 6%; left: 0; z-index: 1;"
+                    style="width: 92%; top: 4%; left: 4%; z-index: 1; transform: rotate(9deg); transform-origin: 50% 100%;"
                     @click.stop="modalCard = {name: seat.name.split(' / ')[1], image_url: seat.image_url2}"
                   />
                   <!-- Front card (first partner, on top) -->
@@ -210,13 +210,13 @@
                     :src="seat.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
                     :alt="seat.name"
                     class="card-img card-shadow absolute"
-                    style="width: 100%; top: 0; left: 0; z-index: 2;"
+                    style="width: 92%; top: 0; left: 0; z-index: 2;"
                     @click.stop="modalCard = {name: seat.name.split(' / ')[0], image_url: seat.image_url}"
                   />
                 </div>
                 <!-- Single commander -->
                 <img
-                  x-show="!seat.image_url2"
+                  x-show="!(seat.name && seat.name.includes(' / ') && !seat.name.includes(' // '))"
                   :src="seat.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
                   :alt="seat.name"
                   class="card-img card-shadow w-full"
@@ -228,7 +228,7 @@
                 <template x-if="!seat.isYou">
                   <div>
                     <div class="text-xs text-gray-300 leading-tight truncate" x-text="seat.name.split(' / ')[0]"></div>
-                    <div x-show="seat.image_url2" class="text-xs text-gray-500 leading-tight truncate" x-text="'+ ' + seat.name.split(' / ')[1]"></div>
+                    <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ')" class="text-xs text-gray-500 leading-tight truncate" x-text="'+ ' + seat.name.split(' / ')[1]"></div>
                     <div class="text-xs text-gray-600 leading-tight" x-text="seat.meta_share + '%'"></div>
                   </div>
                 </template>
