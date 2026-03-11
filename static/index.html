@@ -613,40 +613,44 @@
       async loadFromMoxfield() {
         const url = this.moxfieldUrl.trim();
         if (!url || this.moxfieldLoading) return;
+        const m = url.match(/moxfield\.com\/decks\/([A-Za-z0-9_-]+)/);
+        if (!m) { this.moxfieldError = 'Invalid Moxfield URL.'; return; }
+        const deckId = m[1];
         this.moxfieldLoading = true;
         this.moxfieldError = '';
         try {
-          const resp = await fetch(`/api/moxfield?url=${encodeURIComponent(url)}`);
+          // Fetch directly from the browser — bypasses Cloudflare using the user's real IP/TLS
+          const resp = await fetch(`https://api2.moxfield.com/v2/decks/all/${deckId}`, {
+            headers: { 'Accept': 'application/json' },
+          });
+          if (!resp.ok) throw new Error(`Moxfield returned ${resp.status}. Make sure the deck is public.`);
           const data = await resp.json();
-          if (!resp.ok) throw new Error(data.detail || 'Failed to load deck.');
 
-          // Build a Moxfield-format text decklist for the paste box
-          const cmdLines = data.commander !== 'Unknown Commander'
-            ? `Commander (1)\n1 ${data.commander.split(' / ').join('\n1 ')}\n\n`
-            : '';
-          const mainLines = data.cards.reduce((acc, name) => {
-            acc[name] = (acc[name] || 0) + 1; return acc;
-          }, {});
-          const deckText = cmdLines + 'Deck (' + data.cards.length + ')\n' +
-            Object.entries(mainLines).map(([n, q]) => `${q} ${n}`).join('\n');
-          this.decklist = deckText;
+          // Extract commanders
+          const cmdEntries = Object.values(data.commanders || {});
+          const cmdNames = cmdEntries.flatMap(e => Array(e.quantity || 1).fill(e.card.name));
+          const cmdName = cmdNames.join(' / ') || '';
 
-          // Auto-populate commander fields
-          const cmdName = data.commander;
-          if (cmdName && cmdName !== 'Unknown Commander') {
+          // Extract mainboard
+          const mainEntries = Object.values(data.mainboard || {});
+          const cards = mainEntries.flatMap(e => Array(e.quantity || 1).fill(e.card.name));
+
+          // Build Moxfield-format text for the paste box
+          const cmdLines = cmdName ? `Commander (${cmdNames.length})\n${cmdNames.map(n => '1 ' + n).join('\n')}\n\n` : '';
+          const mainCounts = cards.reduce((acc, n) => { acc[n] = (acc[n] || 0) + 1; return acc; }, {});
+          this.decklist = cmdLines + `Deck (${cards.length})\n` + Object.entries(mainCounts).map(([n, q]) => `${q} ${n}`).join('\n');
+
+          // Auto-populate commander dropdowns
+          if (cmdName) {
             if (cmdName.includes(' / ')) {
               const [a, b] = cmdName.split(' / ');
-              this.cmd1 = a.trim();
-              this.cmd2 = b.trim();
-              this.hasPartner = true;
+              this.cmd1 = a.trim(); this.cmd2 = b.trim(); this.hasPartner = true;
             } else {
-              this.cmd1 = cmdName;
-              this.cmd2 = '';
-              this.hasPartner = false;
+              this.cmd1 = cmdName; this.cmd2 = ''; this.hasPartner = false;
             }
           }
         } catch (e) {
-          this.moxfieldError = e.message;
+          this.moxfieldError = e.message || 'Failed to load deck. Make sure the deck is public.';
         } finally {
           this.moxfieldLoading = false;
         }
