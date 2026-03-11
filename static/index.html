@@ -82,19 +82,6 @@
         ></textarea>
       </div>
 
-      <div class="flex flex-col gap-1">
-        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Meta Snapshot</label>
-        <select
-          x-model="timePeriod"
-          class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-purple-500 text-sm"
-        >
-          <option value="ONE_MONTH">Last Month</option>
-          <option value="THREE_MONTHS">Last 3 Months</option>
-          <option value="SIX_MONTHS">Last 6 Months</option>
-          <option value="ONE_YEAR">Last Year</option>
-          <option value="ALL_TIME">All Time</option>
-        </select>
-      </div>
 
       <!-- Error -->
       <div x-show="error" class="bg-red-950 border border-red-700 rounded-xl p-3 text-red-300 text-sm" x-text="error"></div>
@@ -475,8 +462,6 @@
       },
 
       async init() {
-        const period = localStorage.getItem('edh-time-period');
-        if (period) this.timePeriod = period;
         await this.loadCommanderList();
       },
 
@@ -590,7 +575,6 @@
           // Remove commander card(s) from deck (Moxfield export includes them)
           const cmdNames = this.commander.split(' / ').map(n => n.trim().toLowerCase());
           this.deckCards = data.cards.filter(c => !cmdNames.includes(c.toLowerCase()));
-          localStorage.setItem('edh-time-period', this.timePeriod);
 
           // Fetch pod (with seat assignment) and first hand concurrently
           await Promise.all([this.fetchPod(), this.drawOpeningHand()]);
