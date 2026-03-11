@@ -3,7 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>EDH Mulligan Sim</title>
+  <title>cEDH Mulligans</title>
+  <meta name="description" content="Simulate opening hands and mulligans with a meta-weighted cEDH pod" />
+  <meta property="og:title" content="cEDH Mulligans" />
+  <meta property="og:description" content="Simulate opening hands and mulligans with a meta-weighted cEDH pod" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="cEDH Mulligans" />
+  <meta name="twitter:description" content="Simulate opening hands and mulligans with a meta-weighted cEDH pod" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
@@ -22,7 +29,7 @@
   <!-- ── STICKY HEADER ── -->
   <header class="sticky top-0 z-20 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800 px-4 py-3 flex items-center justify-between" style="max-width:100%">
     <div>
-      <h1 class="text-lg font-bold text-purple-400 leading-none">EDH Mulligan Sim</h1>
+      <h1 class="text-lg font-bold text-purple-400 leading-none">cEDH Mulligans</h1>
       <p class="text-xs text-gray-500 mt-0.5" x-show="phase === 'setup'">meta-weighted pod generator</p>
       <p class="text-xs text-gray-400 mt-0.5 truncate max-w-64" x-show="phase === 'session'" x-text="commander"></p>
     </div>
