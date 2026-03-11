@@ -191,6 +191,16 @@ def normalize_partner_order(name: str) -> str:
     return name
 
 
+def find_commander_stats(commander: str, cache: list) -> dict | None:
+    """Look up a commander's stats in the cache, tolerating partner-order differences."""
+    query_names = {n.strip().lower() for n in commander.replace(" // ", " / ").split(" / ")}
+    for c in cache:
+        cache_names = {n.strip().lower() for n in c["name"].replace(" // ", " / ").split(" / ")}
+        if query_names == cache_names:
+            return c
+    return None
+
+
 def card_image_names(commander_name: str) -> list[str]:
     """Return the Scryfall card name(s) needed to fetch images for a commander.
     ' / '  = partner pair → two separate card names
@@ -264,6 +274,11 @@ async def get_pod(time_period: str = "THREE_MONTHS", exclude: str = "", commande
         result["commander_image_url2"] = _image_cache.get(user_img_names[1]) if len(user_img_names) > 1 else None
         # Return the normalized commander name so the frontend name/image order matches
         result["normalized_commander"] = normalize_partner_order(commander)
+        # Look up commander stats from the cache
+        stats = find_commander_stats(commander, commanders)
+        if stats:
+            result["commander_meta_share"] = stats["meta_share"]
+            result["commander_win_rate"] = stats["win_rate"]
 
     return result
 

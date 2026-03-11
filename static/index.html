@@ -224,7 +224,13 @@
               </div>
               <!-- Label -->
               <div class="text-center mt-1 w-full px-0.5">
-                <div x-show="seat.isYou" class="text-xs text-purple-400 font-semibold leading-tight">You</div>
+                <template x-if="seat.isYou">
+                  <div>
+                    <div class="text-xs text-purple-400 font-semibold leading-tight">You</div>
+                    <div x-show="seat.meta_share !== null" class="text-xs text-gray-600 leading-tight" x-text="'MS: ' + seat.meta_share + '%'"></div>
+                    <div x-show="seat.win_rate !== null" class="text-xs text-gray-600 leading-tight" x-text="'WR: ' + seat.win_rate + '%'"></div>
+                  </div>
+                </template>
                 <template x-if="!seat.isYou">
                   <div>
                     <div class="text-xs text-gray-300 leading-tight truncate" x-text="seat.name.split(' / ')[0]"></div>
@@ -607,7 +613,7 @@
 
         // Randomly assign seats 1-4 to all 4 players
         const allPlayers = [
-          { name: this.commander, image_url: this.commanderImage, image_url2: this.commanderImage2, isYou: true, meta_share: null, win_rate: null },
+          { name: this.commander, image_url: this.commanderImage, image_url2: this.commanderImage2, isYou: true, meta_share: data.commander_meta_share ?? null, win_rate: data.commander_win_rate ?? null },
           ...data.opponents.map(o => ({ ...o, isYou: false })),
         ];
         const shuffled = this.shuffle(allPlayers);
