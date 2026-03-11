@@ -158,19 +158,23 @@ async def get_pod(time_period: str = "THREE_MONTHS", exclude: str = ""):
         raise HTTPException(status_code=500, detail="Not enough commanders found in meta data.")
 
     weights = [c["meta_share"] for c in available]
-    seen, opponents = set(), []
-    for c in random.choices(available, weights=weights, k=len(available)):
-        if c["name"] not in seen:
-            seen.add(c["name"])
-            opponents.append(dict(c))
-        if len(opponents) == 3:
-            break
+    # Allow duplicates — the same commander can appear multiple times in a real pod
+    opponents = [dict(c) for c in random.choices(available, weights=weights, k=3)]
 
-    # Fetch Scryfall images for commanders
+    # Fetch Scryfall images for all commanders.
+    # " / "  = partner pair (two separate cards, need two images)
+    # " // " = double-faced card (one card, use front face only)
+    def card_image_names(commander_name: str) -> list[str]:
+        if " // " in commander_name:
+            return [commander_name.split(" // ")[0].strip()]
+        elif " / " in commander_name:
+            return [p.strip() for p in commander_name.split(" / ")]
+        return [commander_name]
+
     uncached = [
-        opp["name"].split(" / ")[0].strip()
-        for opp in opponents
-        if opp["name"].split(" / ")[0].strip() not in _image_cache
+        n for opp in opponents
+        for n in card_image_names(opp["name"])
+        if n not in _image_cache
     ]
     if uncached:
         async with httpx.AsyncClient() as client:
@@ -186,8 +190,9 @@ async def get_pod(time_period: str = "THREE_MONTHS", exclude: str = ""):
                     _image_cache[name] = None
 
     for opp in opponents:
-        primary = opp["name"].split(" / ")[0].strip()
-        opp["image_url"] = _image_cache.get(primary)
+        names = card_image_names(opp["name"])
+        opp["image_url"] = _image_cache.get(names[0])
+        opp["image_url2"] = _image_cache.get(names[1]) if len(names) > 1 else None
 
     return {"opponents": opponents}
 

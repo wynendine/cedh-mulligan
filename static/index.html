@@ -112,7 +112,7 @@
           <template x-for="seat in seats" :key="seat.seat">
             <div
               class="flex flex-col items-center cursor-pointer"
-              @click="modalCard = {name: seat.name, image_url: seat.image_url}"
+              @click="!seat.image_url2 && (modalCard = {name: seat.name, image_url: seat.image_url})"
             >
               <!-- Seat label -->
               <div class="flex items-center gap-0.5 mb-1 h-4">
@@ -123,12 +123,29 @@
                 ></span>
                 <span x-show="seat.seat === 1" class="text-yellow-400 text-xs">★</span>
               </div>
-              <!-- Card image -->
+              <!-- Card image(s) — single card or partner pair side by side -->
               <div
                 class="w-full"
                 :class="seat.isYou ? 'ring-2 ring-purple-500 rounded-xl' : ''"
               >
+                <!-- Partner pair: two cards side by side -->
+                <div x-show="seat.image_url2" class="flex gap-0.5">
+                  <img
+                    :src="seat.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
+                    :alt="seat.name"
+                    class="card-img card-shadow w-1/2"
+                    @click.stop="modalCard = {name: seat.name.split(' / ')[0], image_url: seat.image_url}"
+                  />
+                  <img
+                    :src="seat.image_url2"
+                    :alt="seat.name"
+                    class="card-img card-shadow w-1/2"
+                    @click.stop="modalCard = {name: seat.name.split(' / ')[1], image_url: seat.image_url2}"
+                  />
+                </div>
+                <!-- Single commander -->
                 <img
+                  x-show="!seat.image_url2"
                   :src="seat.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
                   :alt="seat.name"
                   class="card-img card-shadow w-full"
@@ -137,8 +154,13 @@
               <!-- Label -->
               <div class="text-center mt-1 w-full px-0.5">
                 <div x-show="seat.isYou" class="text-xs text-purple-400 font-semibold leading-tight">You</div>
-                <div x-show="!seat.isYou" class="text-xs text-gray-300 leading-tight truncate" x-text="seat.name.split(' / ')[0]"></div>
-                <div x-show="!seat.isYou" class="text-xs text-gray-600 leading-tight" x-text="seat.meta_share + '%'"></div>
+                <template x-if="!seat.isYou">
+                  <div>
+                    <div class="text-xs text-gray-300 leading-tight truncate" x-text="seat.name.split(' / ')[0]"></div>
+                    <div x-show="seat.image_url2" class="text-xs text-gray-500 leading-tight truncate" x-text="'+ ' + seat.name.split(' / ')[1]"></div>
+                    <div class="text-xs text-gray-600 leading-tight" x-text="seat.meta_share + '%'"></div>
+                  </div>
+                </template>
               </div>
             </div>
           </template>
@@ -399,8 +421,9 @@
       commander: '',
       deckCards: [],
       pod: [],
-      seats: [],          // [{seat, name, image_url, isYou, meta_share, win_rate}]
+      seats: [],          // [{seat, name, image_url, image_url2, isYou, meta_share, win_rate}]
       commanderImage: null,
+      commanderImage2: null,
 
       // Hand
       hand: [],
@@ -457,20 +480,25 @@
       },
 
       async fetchPod() {
-        // Fetch commander image and pod opponents in parallel
-        const primaryCommander = this.commander.split(' / ')[0].trim();
+        // Detect whether user's commander is a partner pair or double-faced card
+        const isPartner = this.commander.includes(' / ') && !this.commander.includes(' // ');
+        const cmdParts = isPartner
+          ? this.commander.split(' / ').map(s => s.trim())
+          : [this.commander.split(' // ')[0].trim()];
+
         const [podResp, imgMap] = await Promise.all([
           fetch(`/api/pod?time_period=${this.timePeriod}&exclude=${encodeURIComponent(this.commander)}`),
-          this.fetchImages([primaryCommander]),
+          this.fetchImages(cmdParts),
         ]);
         if (!podResp.ok) throw new Error('Failed to generate pod from edhtop16.');
         const data = await podResp.json();
         this.pod = data.opponents;
-        this.commanderImage = imgMap[primaryCommander] || null;
+        this.commanderImage = imgMap[cmdParts[0]] || null;
+        this.commanderImage2 = cmdParts.length > 1 ? imgMap[cmdParts[1]] || null : null;
 
         // Randomly assign seats 1-4 to all 4 players
         const allPlayers = [
-          { name: this.commander, image_url: this.commanderImage, isYou: true, meta_share: null, win_rate: null },
+          { name: this.commander, image_url: this.commanderImage, image_url2: this.commanderImage2, isYou: true, meta_share: null, win_rate: null },
           ...data.opponents.map(o => ({ ...o, isYou: false })),
         ];
         const shuffled = this.shuffle(allPlayers);
@@ -629,6 +657,7 @@
         this.handState = 'drawn';
         this.drawnCards = [];
         this.commanderImage = null;
+        this.commanderImage2 = null;
       },
     };
   }
