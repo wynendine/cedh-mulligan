@@ -437,7 +437,9 @@
           }
           const data = await r.json();
           this.commander = this.commanderInput.trim() || data.commander;
-          this.deckCards = data.cards;
+          // Remove commander card(s) from deck (Moxfield export includes them)
+          const cmdNames = this.commander.split(' / ').map(n => n.trim().toLowerCase());
+          this.deckCards = data.cards.filter(c => !cmdNames.includes(c.toLowerCase()));
           localStorage.setItem('edh-decklist', this.decklist);
           localStorage.setItem('edh-commander', this.commanderInput.trim());
           localStorage.setItem('edh-time-period', this.timePeriod);
