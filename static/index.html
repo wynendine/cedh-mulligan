@@ -131,7 +131,6 @@
                   :class="seat.isYou ? 'text-purple-400' : 'text-gray-500'"
                   x-text="'S' + seat.seat"
                 ></span>
-                <span x-show="seat.seat === 1" class="text-yellow-400 text-xs">★</span>
               </div>
               <!-- Card image(s) — single card or partner pair side by side -->
               <div
@@ -180,9 +179,6 @@
           </template>
         </div>
 
-        <p x-show="seats.length > 0" class="text-xs text-gray-600 text-center mt-2">
-          ★ goes first · you are in seat <span class="text-gray-400" x-text="seats.find(s => s.isYou)?.seat"></span>
-        </p>
       </div>
 
       <!-- ── DIVIDER ── -->
