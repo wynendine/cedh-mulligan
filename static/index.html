@@ -587,21 +587,13 @@
       },
 
       async fetchPod() {
-        // Detect whether user's commander is a partner pair or double-faced card
-        const isPartner = this.commander.includes(' / ') && !this.commander.includes(' // ');
-        const cmdParts = isPartner
-          ? this.commander.split(' / ').map(s => s.trim())
-          : [this.commander.split(' // ')[0].trim()];
-
-        const [podResp, imgMap] = await Promise.all([
-          fetch(`/api/pod?time_period=${this.timePeriod}&exclude=${encodeURIComponent(this.commander)}`),
-          this.fetchImages(cmdParts),
-        ]);
+        const url = `/api/pod?time_period=${this.timePeriod}&exclude=${encodeURIComponent(this.commander)}&commander=${encodeURIComponent(this.commander)}`;
+        const podResp = await fetch(url);
         if (!podResp.ok) throw new Error('Failed to generate pod from edhtop16.');
         const data = await podResp.json();
         this.pod = data.opponents;
-        this.commanderImage = imgMap[cmdParts[0]] || null;
-        this.commanderImage2 = cmdParts.length > 1 ? imgMap[cmdParts[1]] || null : null;
+        this.commanderImage = data.commander_image_url || null;
+        this.commanderImage2 = data.commander_image_url2 || null;
 
         // Randomly assign seats 1-4 to all 4 players
         const allPlayers = [

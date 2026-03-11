@@ -174,8 +174,38 @@ async def get_commanders(time_period: str = "THREE_MONTHS"):
     return {"commanders": [c["name"] for c in _commander_cache[time_period]]}
 
 
+def card_image_names(commander_name: str) -> list[str]:
+    """Return the Scryfall card name(s) needed to fetch images for a commander.
+    ' / '  = partner pair → two separate card names
+    ' // ' = double-faced card → front face only (one card)
+    """
+    if " // " in commander_name:
+        return [commander_name.split(" // ")[0].strip()]
+    elif " / " in commander_name:
+        return [p.strip() for p in commander_name.split(" / ")]
+    return [commander_name]
+
+
+async def _fetch_images_fuzzy(names: list[str]) -> None:
+    """Fetch and cache Scryfall images for a list of card names using fuzzy lookup."""
+    uncached = [n for n in names if n not in _image_cache]
+    if not uncached:
+        return
+    async with httpx.AsyncClient() as client:
+        for name in uncached:
+            try:
+                r = await client.get(
+                    "https://api.scryfall.com/cards/named",
+                    params={"fuzzy": name},
+                    timeout=5.0,
+                )
+                _image_cache[name] = extract_image_url(r.json())
+            except Exception:
+                _image_cache[name] = None
+
+
 @app.get("/api/pod")
-async def get_pod(time_period: str = "THREE_MONTHS", exclude: str = ""):
+async def get_pod(time_period: str = "THREE_MONTHS", exclude: str = "", commander: str = ""):
     valid = {"ONE_MONTH", "THREE_MONTHS", "SIX_MONTHS", "ONE_YEAR", "ALL_TIME"}
     if time_period not in valid:
         time_period = "THREE_MONTHS"
@@ -192,40 +222,22 @@ async def get_pod(time_period: str = "THREE_MONTHS", exclude: str = ""):
     # Allow duplicates — the same commander can appear multiple times in a real pod
     opponents = [dict(c) for c in random.choices(available, weights=weights, k=3)]
 
-    # Fetch Scryfall images for all commanders.
-    # " / "  = partner pair (two separate cards, need two images)
-    # " // " = double-faced card (one card, use front face only)
-    def card_image_names(commander_name: str) -> list[str]:
-        if " // " in commander_name:
-            return [commander_name.split(" // ")[0].strip()]
-        elif " / " in commander_name:
-            return [p.strip() for p in commander_name.split(" / ")]
-        return [commander_name]
-
-    uncached = [
-        n for opp in opponents
-        for n in card_image_names(opp["name"])
-        if n not in _image_cache
-    ]
-    if uncached:
-        async with httpx.AsyncClient() as client:
-            for name in uncached:
-                try:
-                    r = await client.get(
-                        "https://api.scryfall.com/cards/named",
-                        params={"fuzzy": name},
-                        timeout=5.0,
-                    )
-                    _image_cache[name] = extract_image_url(r.json())
-                except Exception:
-                    _image_cache[name] = None
+    # Collect all image names needed: opponents + user's commander
+    opponent_img_names = [n for opp in opponents for n in card_image_names(opp["name"])]
+    user_img_names = card_image_names(commander) if commander else []
+    await _fetch_images_fuzzy(opponent_img_names + user_img_names)
 
     for opp in opponents:
         names = card_image_names(opp["name"])
         opp["image_url"] = _image_cache.get(names[0])
         opp["image_url2"] = _image_cache.get(names[1]) if len(names) > 1 else None
 
-    return {"opponents": opponents}
+    result: dict = {"opponents": opponents}
+    if user_img_names:
+        result["commander_image_url"] = _image_cache.get(user_img_names[0])
+        result["commander_image_url2"] = _image_cache.get(user_img_names[1]) if len(user_img_names) > 1 else None
+
+    return result
 
 
 @app.post("/api/card-images")
