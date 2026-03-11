@@ -52,14 +52,30 @@
         ></textarea>
       </div>
 
-      <div class="flex flex-col gap-1">
+      <div class="flex flex-col gap-1 relative">
         <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Your Commander</label>
         <input
           x-model="commanderInput"
+          @input="filterCommanders()"
+          @focus="filterCommanders()"
+          @blur="setTimeout(() => showSuggestions = false, 150)"
           type="text"
-          placeholder="e.g. Atraxa, Praetors' Voice  or  Kraum, Ludevic's Opus / Tymna the Weaver"
+          placeholder="Search commanders…"
           class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 text-sm"
         />
+        <div
+          x-show="showSuggestions"
+          class="absolute left-0 right-0 top-full mt-1 bg-gray-800 border border-gray-700 rounded-xl overflow-hidden z-30 shadow-xl"
+          style="z-index:50"
+        >
+          <template x-for="name in commanderSuggestions" :key="name">
+            <button
+              @mousedown.prevent="selectCommander(name)"
+              class="w-full text-left px-4 py-2.5 text-sm text-white hover:bg-gray-700 border-b border-gray-700/50 last:border-0"
+              x-text="name"
+            ></button>
+          </template>
+        </div>
       </div>
 
       <div class="flex flex-col gap-1">
@@ -387,6 +403,9 @@
       decklist: '',
       commanderInput: '',
       timePeriod: 'THREE_MONTHS',
+      allCommanders: [],
+      commanderSuggestions: [],
+      showSuggestions: false,
 
       // Session
       commander: '',
@@ -419,6 +438,23 @@
         if (period) this.timePeriod = period;
         const cmd = localStorage.getItem('edh-commander');
         if (cmd) this.commanderInput = cmd;
+        // Pre-fetch commander list for autocomplete
+        try {
+          const r = await fetch(`/api/commanders?time_period=${this.timePeriod}`);
+          if (r.ok) { const d = await r.json(); this.allCommanders = d.commanders; }
+        } catch {}
+      },
+
+      filterCommanders() {
+        const q = this.commanderInput.trim().toLowerCase();
+        if (!q) { this.commanderSuggestions = []; this.showSuggestions = false; return; }
+        this.commanderSuggestions = this.allCommanders.filter(n => n.toLowerCase().includes(q)).slice(0, 8);
+        this.showSuggestions = this.commanderSuggestions.length > 0;
+      },
+
+      selectCommander(name) {
+        this.commanderInput = name;
+        this.showSuggestions = false;
       },
 
       async startSession() {

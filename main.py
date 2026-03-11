@@ -110,6 +110,49 @@ async def get_deck(request: DeckRequest):
     }
 
 
+@app.get("/api/commanders")
+async def get_commanders(time_period: str = "THREE_MONTHS"):
+    valid = {"ONE_MONTH", "THREE_MONTHS", "SIX_MONTHS", "ONE_YEAR", "ALL_TIME"}
+    if time_period not in valid:
+        time_period = "THREE_MONTHS"
+
+    if time_period not in _commander_cache:
+        query = (
+            "{ commanders(first: 200, sortBy: POPULARITY, timePeriod: "
+            + time_period
+            + ") { edges { node { name stats(filters: { timePeriod: "
+            + time_period
+            + " }) { metaShare count winRate } } } } }"
+        )
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://edhtop16.com/api/graphql",
+                json={"query": query},
+                timeout=15.0,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+        edges = data.get("data", {}).get("commanders", {}).get("edges", [])
+        commanders = []
+        for edge in edges:
+            node = edge.get("node", {})
+            stats = node.get("stats") or {}
+            meta = stats.get("metaShare") or 0
+            if meta > 0:
+                commanders.append(
+                    {
+                        "name": node["name"],
+                        "meta_share": round(meta * 100, 2),
+                        "count": stats.get("count") or 0,
+                        "win_rate": round((stats.get("winRate") or 0) * 100, 1),
+                    }
+                )
+        _commander_cache[time_period] = commanders
+
+    return {"commanders": [c["name"] for c in _commander_cache[time_period]]}
+
+
 @app.get("/api/pod")
 async def get_pod(time_period: str = "THREE_MONTHS", exclude: str = ""):
     valid = {"ONE_MONTH", "THREE_MONTHS", "SIX_MONTHS", "ONE_YEAR", "ALL_TIME"}
