@@ -174,20 +174,38 @@ async def get_commanders(time_period: str = "THREE_MONTHS"):
     return {"commanders": [c["name"] for c in _commander_cache[time_period]]}
 
 
+# Commanders that should always be displayed as the primary (front) card in a partner pair.
+_PREFERRED_PRIMARY = {"Tymna the Weaver"}
+
+
+def normalize_partner_order(name: str) -> str:
+    """If a partner pair contains a preferred-primary commander, put it first."""
+    if " / " not in name or " // " in name:
+        return name
+    parts = [p.strip() for p in name.split(" / ", 1)]
+    if parts[1] in _PREFERRED_PRIMARY and parts[0] not in _PREFERRED_PRIMARY:
+        return f"{parts[1]} / {parts[0]}"
+    return name
+
+
 def card_image_names(commander_name: str) -> list[str]:
     """Return the Scryfall card name(s) needed to fetch images for a commander.
     ' / '  = partner pair → two separate card names
     ' // ' = double-faced card → front face only (one card)
+    Partner order is normalized so preferred-primary commanders come first.
     """
     if " // " in commander_name:
         return [commander_name.split(" // ")[0].strip()]
     elif " / " in commander_name:
-        return [p.strip() for p in commander_name.split(" / ")]
+        normalized = normalize_partner_order(commander_name)
+        return [p.strip() for p in normalized.split(" / ")]
     return [commander_name]
 
 
 async def _fetch_images_fuzzy(names: list[str]) -> None:
-    """Fetch and cache Scryfall images for a list of card names using fuzzy lookup."""
+    """Fetch and cache Scryfall images for a list of card names using fuzzy lookup.
+    Only caches successes — failed fetches are not stored so they are retried later.
+    """
     uncached = [n for n in names if n not in _image_cache]
     if not uncached:
         return
@@ -197,11 +215,14 @@ async def _fetch_images_fuzzy(names: list[str]) -> None:
                 r = await client.get(
                     "https://api.scryfall.com/cards/named",
                     params={"fuzzy": name},
-                    timeout=5.0,
+                    timeout=8.0,
                 )
-                _image_cache[name] = extract_image_url(r.json())
+                if r.status_code == 200:
+                    url = extract_image_url(r.json())
+                    if url:
+                        _image_cache[name] = url
             except Exception:
-                _image_cache[name] = None
+                pass  # Don't cache failures — allow retry on next request
 
 
 @app.get("/api/pod")
@@ -228,6 +249,7 @@ async def get_pod(time_period: str = "THREE_MONTHS", exclude: str = "", commande
     await _fetch_images_fuzzy(opponent_img_names + user_img_names)
 
     for opp in opponents:
+        opp["name"] = normalize_partner_order(opp["name"])
         names = card_image_names(opp["name"])
         opp["image_url"] = _image_cache.get(names[0])
         opp["image_url2"] = _image_cache.get(names[1]) if len(names) > 1 else None
