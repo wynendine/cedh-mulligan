@@ -536,19 +536,8 @@
       },
 
       async init() {
-        const saved = localStorage.getItem('edh-decklist');
-        if (saved) this.decklist = saved;
         const period = localStorage.getItem('edh-time-period');
         if (period) this.timePeriod = period;
-        const cmd = localStorage.getItem('edh-commander');
-        if (cmd) {
-          if (cmd.includes(' / ')) {
-            const [a, b] = cmd.split(' / ');
-            this.cmd1 = a.trim(); this.cmd2 = b.trim(); this.hasPartner = true;
-          } else {
-            this.cmd1 = cmd;
-          }
-        }
         await this.loadCommanderList();
       },
 
@@ -662,8 +651,6 @@
           // Remove commander card(s) from deck (Moxfield export includes them)
           const cmdNames = this.commander.split(' / ').map(n => n.trim().toLowerCase());
           this.deckCards = data.cards.filter(c => !cmdNames.includes(c.toLowerCase()));
-          localStorage.setItem('edh-decklist', this.decklist);
-          localStorage.setItem('edh-commander', this.commander);
           localStorage.setItem('edh-time-period', this.timePeriod);
 
           // Fetch pod (with seat assignment) and first hand concurrently
