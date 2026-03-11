@@ -128,19 +128,23 @@
                 class="w-full"
                 :class="seat.isYou ? 'ring-2 ring-purple-500 rounded-xl' : ''"
               >
-                <!-- Partner pair: two cards side by side -->
-                <div x-show="seat.image_url2" class="flex gap-0.5">
+                <!-- Partner pair: stacked/fanned -->
+                <div x-show="seat.image_url2" class="relative w-full" style="padding-bottom: 148%;">
+                  <!-- Back card (second partner, rotated right) -->
+                  <img
+                    :src="seat.image_url2 || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
+                    :alt="seat.name"
+                    class="card-img card-shadow absolute"
+                    style="width: 82%; top: 8%; right: -6%; transform: rotate(9deg); z-index: 1;"
+                    @click.stop="modalCard = {name: seat.name.split(' / ')[1], image_url: seat.image_url2}"
+                  />
+                  <!-- Front card (first partner) -->
                   <img
                     :src="seat.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
                     :alt="seat.name"
-                    class="card-img card-shadow w-1/2"
+                    class="card-img card-shadow absolute"
+                    style="width: 82%; top: 4%; left: 0; z-index: 2;"
                     @click.stop="modalCard = {name: seat.name.split(' / ')[0], image_url: seat.image_url}"
-                  />
-                  <img
-                    :src="seat.image_url2"
-                    :alt="seat.name"
-                    class="card-img card-shadow w-1/2"
-                    @click.stop="modalCard = {name: seat.name.split(' / ')[1], image_url: seat.image_url2}"
                   />
                 </div>
                 <!-- Single commander -->
