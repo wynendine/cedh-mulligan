@@ -107,6 +107,28 @@
       </div>
 
       <div class="flex flex-col gap-1">
+        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Load from Moxfield URL</label>
+        <div class="flex gap-2">
+          <input
+            type="url"
+            x-model="moxfieldUrl"
+            @keydown.enter.prevent="loadFromMoxfield()"
+            placeholder="https://www.moxfield.com/decks/..."
+            class="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 text-sm"
+          />
+          <button
+            @click="loadFromMoxfield()"
+            :disabled="moxfieldLoading || !moxfieldUrl.trim()"
+            class="bg-purple-700 hover:bg-purple-600 active:bg-purple-800 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap"
+          >
+            <span x-show="!moxfieldLoading">Load</span>
+            <span x-show="moxfieldLoading">Loading…</span>
+          </button>
+        </div>
+        <div x-show="moxfieldError" class="text-xs text-red-400" x-text="moxfieldError"></div>
+      </div>
+
+      <div class="flex flex-col gap-1">
         <div class="flex items-center justify-between">
           <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Paste Your Decklist</label>
           <span class="text-xs text-gray-600">Moxfield → Export → Copy for Moxfield</span>
@@ -468,6 +490,9 @@
 
       // Inputs
       decklist: '',
+      moxfieldUrl: '',
+      moxfieldLoading: false,
+      moxfieldError: '',
       cmd1: '',
       cmd2: '',
       hasPartner: false,
@@ -583,6 +608,48 @@
       selectCmd2(name) {
         this.cmd2 = name;
         this.showSug2 = false;
+      },
+
+      async loadFromMoxfield() {
+        const url = this.moxfieldUrl.trim();
+        if (!url || this.moxfieldLoading) return;
+        this.moxfieldLoading = true;
+        this.moxfieldError = '';
+        try {
+          const resp = await fetch(`/api/moxfield?url=${encodeURIComponent(url)}`);
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data.detail || 'Failed to load deck.');
+
+          // Build a Moxfield-format text decklist for the paste box
+          const cmdLines = data.commander !== 'Unknown Commander'
+            ? `Commander (1)\n1 ${data.commander.split(' / ').join('\n1 ')}\n\n`
+            : '';
+          const mainLines = data.cards.reduce((acc, name) => {
+            acc[name] = (acc[name] || 0) + 1; return acc;
+          }, {});
+          const deckText = cmdLines + 'Deck (' + data.cards.length + ')\n' +
+            Object.entries(mainLines).map(([n, q]) => `${q} ${n}`).join('\n');
+          this.decklist = deckText;
+
+          // Auto-populate commander fields
+          const cmdName = data.commander;
+          if (cmdName && cmdName !== 'Unknown Commander') {
+            if (cmdName.includes(' / ')) {
+              const [a, b] = cmdName.split(' / ');
+              this.cmd1 = a.trim();
+              this.cmd2 = b.trim();
+              this.hasPartner = true;
+            } else {
+              this.cmd1 = cmdName;
+              this.cmd2 = '';
+              this.hasPartner = false;
+            }
+          }
+        } catch (e) {
+          this.moxfieldError = e.message;
+        } finally {
+          this.moxfieldLoading = false;
+        }
       },
 
       async startSession() {

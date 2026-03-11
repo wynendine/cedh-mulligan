@@ -7,6 +7,7 @@ import random
 import re
 import os
 from typing import Optional
+from curl_cffi.requests import AsyncSession as CurlSession
 
 _STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
@@ -290,6 +291,56 @@ async def get_card_images(request: CardNamesRequest):
     primaries = [name.split(" / ")[0].strip() for name in request.names]
     await _fetch_images_fuzzy(primaries)
     return {name: _image_cache.get(name.split(" / ")[0].strip()) for name in request.names}
+
+
+_MOXFIELD_DECK_RE = re.compile(r"moxfield\.com/decks/([A-Za-z0-9_-]+)")
+
+
+@app.get("/api/moxfield")
+async def load_moxfield(url: str):
+    m = _MOXFIELD_DECK_RE.search(url)
+    if not m:
+        raise HTTPException(status_code=400, detail="Invalid Moxfield URL.")
+    deck_id = m.group(1)
+
+    async with CurlSession(impersonate="chrome") as session:
+        try:
+            resp = await session.get(
+                f"https://api2.moxfield.com/v2/decks/all/{deck_id}",
+                timeout=15.0,
+            )
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Failed to reach Moxfield: {e}")
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"Moxfield returned {resp.status_code}.")
+
+    data = resp.json()
+
+    # Extract commanders
+    commanders = [
+        entry["card"]["name"]
+        for entry in (data.get("commanders") or {}).values()
+        for _ in range(entry.get("quantity", 1))
+    ]
+
+    # Extract mainboard cards
+    mainboard = [
+        entry["card"]["name"]
+        for entry in (data.get("mainboard") or {}).values()
+        for _ in range(entry.get("quantity", 1))
+    ]
+
+    if not mainboard and not commanders:
+        raise HTTPException(status_code=400, detail="Deck appears to be empty or private.")
+
+    commander_str = " / ".join(commanders) if commanders else "Unknown Commander"
+    return {
+        "commander": commander_str,
+        "cards": mainboard,
+        "card_count": len(mainboard),
+        "name": data.get("name", commander_str),
+    }
 
 
 @app.get("/")
