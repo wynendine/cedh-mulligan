@@ -216,6 +216,7 @@
                 <template x-if="!seat.isYou">
                   <div class="flex items-center gap-3">
                     <div x-show="matchupsLoading" class="text-xs text-gray-600">loading…</div>
+                    <div x-show="!matchupsLoading && matchupsError" class="text-xs text-red-500" x-text="matchupsError"></div>
                     <div x-show="!matchupsLoading && matchupFor(seat.name)" class="flex items-center gap-3">
                       <div class="text-xs flex gap-0.5">
                         <span class="text-gray-300">GP:</span>
@@ -506,6 +507,7 @@
       // Matchup data
       matchups: {},        // {normalizedOpponentName: {pods, win_rate, draw_rate}}
       matchupsLoading: false,
+      matchupsError: '',
 
       // Hand
       hand: [],
@@ -691,12 +693,20 @@
 
       async fetchMatchups() {
         this.matchups = {};
+        this.matchupsError = '';
         this.matchupsLoading = true;
         try {
           const r = await fetch(`/api/matchups?commander=${encodeURIComponent(this.commander)}&time_period=${this.timePeriod}`);
-          if (r.ok) this.matchups = await r.json();
-        } catch {}
-        finally { this.matchupsLoading = false; }
+          if (r.ok) {
+            this.matchups = await r.json();
+          } else {
+            this.matchupsError = `Error ${r.status}`;
+          }
+        } catch(e) {
+          this.matchupsError = e.message;
+        } finally {
+          this.matchupsLoading = false;
+        }
       },
 
       matchupFor(name) {
