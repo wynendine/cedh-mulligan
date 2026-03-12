@@ -155,12 +155,15 @@
               </div>
               <!-- Label with mulligan status -->
               <div class="text-center mt-1 w-full px-0.5">
-                <div class="text-xs font-semibold leading-tight"
-                  :class="seat.isYou ? 'text-purple-400' : 'text-gray-300'"
-                  x-text="seat.isYou ? 'You' : seat.name.split(' / ')[0]"></div>
-                <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ') && !seat.isYou"
-                  class="text-xs text-gray-500 leading-tight truncate"
-                  x-text="'+ ' + seat.name.split(' / ')[1]"></div>
+                <!-- Fixed-height name area so all cards align regardless of partner -->
+                <div style="min-height: 2rem;">
+                  <div class="text-xs font-semibold leading-tight"
+                    :class="seat.isYou ? 'text-purple-400' : 'text-gray-300'"
+                    x-text="seat.isYou ? 'You' : seat.name.split(' / ')[0]"></div>
+                  <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ') && !seat.isYou"
+                    class="text-xs text-gray-500 leading-tight truncate"
+                    x-text="'+ ' + seat.name.split(' / ')[1]"></div>
+                </div>
                 <template x-if="podMulligans.length > 0">
                   <div x-data="{ pm: podMulligans.find(p => p.seat === seat.seat) }">
                     <div x-show="pm && podDecidingSeat === pm.seat && !pm.isYou"
