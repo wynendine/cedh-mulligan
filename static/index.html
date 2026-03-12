@@ -215,6 +215,49 @@
         <span><span class="text-gray-400">MS</span> = Meta Share</span>
       </div>
 
+      <!-- ── POD MULLIGAN TRACKER ── -->
+      <div x-show="podMulligans.length > 0">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Pod Mulligans</h2>
+          <button @click="resetPodTracker()" class="text-xs text-gray-500 hover:text-gray-300">Reset ↺</button>
+        </div>
+        <div class="flex flex-col gap-1">
+          <template x-for="p in podMulligans" :key="p.seat">
+            <div class="flex items-center justify-between rounded-xl px-3 py-2 transition-colors"
+              :class="podDecidingSeat === p.seat ? 'bg-gray-800' : 'bg-gray-900/50'">
+              <!-- Name -->
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="text-xs font-bold flex-shrink-0"
+                  :class="p.isYou ? 'text-purple-400' : 'text-gray-500'"
+                  x-text="'S' + p.seat"></span>
+                <span class="text-sm truncate max-w-40"
+                  :class="p.kept ? 'text-gray-500' : p.isYou ? 'text-purple-300' : 'text-gray-300'"
+                  x-text="p.name.split(' / ')[0]"></span>
+              </div>
+              <!-- Right side: status + buttons -->
+              <div class="flex items-center gap-1.5 flex-shrink-0">
+                <!-- Kept badge -->
+                <span x-show="p.kept"
+                  class="text-xs px-2 py-0.5 rounded-full font-bold"
+                  style="background:rgba(220,252,231,0.95); color:#008000;"
+                  x-text="p.mulliganCount > 0 ? 'Kept (' + p.mulliganCount + ')' : 'Kept'"></span>
+                <!-- Waiting with mull count -->
+                <span x-show="!p.kept && podDecidingSeat !== p.seat && p.mulliganCount > 0"
+                  class="text-xs text-gray-500 font-medium"
+                  x-text="'Mull ' + p.mulliganCount"></span>
+                <!-- Keep / Mull buttons -->
+                <div x-show="podDecidingSeat === p.seat" class="flex gap-1">
+                  <button @click="podKeep(p.seat)"
+                    class="text-xs bg-green-900 hover:bg-green-800 text-green-300 px-2.5 py-1 rounded-lg font-medium">Keep</button>
+                  <button @click="podMull(p.seat)"
+                    class="text-xs bg-orange-900/70 hover:bg-orange-800/70 text-orange-300 px-2.5 py-1 rounded-lg font-medium">Mull</button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
       <!-- ── DIVIDER ── -->
       <div class="border-t border-gray-800"></div>
 
@@ -464,6 +507,10 @@
       commanderImage: null,
       commanderImage2: null,
 
+      // Pod mulligan tracker
+      podMulligans: [],
+      podDecidingSeat: null,
+
       // Hand
       hand: [],
       deck: [],
@@ -616,6 +663,7 @@
 
           // Fetch pod (with seat assignment) and first hand concurrently
           await Promise.all([this.fetchPod(), this.drawOpeningHand()]);
+          this.initPodTracker();
           this.phase = 'session';
         } catch (e) {
           this.error = e.message;
@@ -755,6 +803,38 @@
         await this.drawOpeningHand();
       },
 
+      initPodTracker() {
+        this.podMulligans = [...this.seats]
+          .sort((a, b) => a.seat - b.seat)
+          .map(s => ({ seat: s.seat, name: s.name, isYou: s.isYou, mulliganCount: 0, kept: false }));
+        this.podDecidingSeat = this.podMulligans[0]?.seat ?? null;
+      },
+
+      podKeep(seat) {
+        const p = this.podMulligans.find(p => p.seat === seat);
+        if (p) p.kept = true;
+        this.advancePodTurn(seat);
+      },
+
+      async podMull(seat) {
+        const p = this.podMulligans.find(p => p.seat === seat);
+        if (p) p.mulliganCount++;
+        if (p?.isYou) await this.mulligan();
+        this.advancePodTurn(seat);
+      },
+
+      advancePodTurn(fromSeat) {
+        const undecided = this.podMulligans.filter(p => !p.kept);
+        if (undecided.length === 0) { this.podDecidingSeat = null; return; }
+        const next = undecided.find(p => p.seat > fromSeat) || undecided[0];
+        this.podDecidingSeat = next.seat;
+      },
+
+      resetPodTracker() {
+        this.podMulligans.forEach(p => { p.mulliganCount = 0; p.kept = false; });
+        this.podDecidingSeat = this.podMulligans[0]?.seat ?? null;
+      },
+
       goToSetup() {
         this.phase = 'setup';
         this.hand = [];
@@ -766,6 +846,8 @@
         this.drawnCards = [];
         this.commanderImage = null;
         this.commanderImage2 = null;
+        this.podMulligans = [];
+        this.podDecidingSeat = null;
       },
     };
   }
