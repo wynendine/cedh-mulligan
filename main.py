@@ -3,7 +3,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import httpx
-import asyncio
 import random
 import re
 import os
@@ -17,9 +16,6 @@ app = FastAPI()
 _deck_cache: dict = {}
 _image_cache: dict = {}
 _commander_cache: dict = {}
-_matchup_cache: dict = {}
-
-TOPDECK_API_KEY = "7454dc38-e7af-438b-b690-fadaeef45d0d"
 
 CARD_BACK = "https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg"
 
@@ -296,135 +292,6 @@ async def get_card_images(request: CardNamesRequest):
     return {name: _image_cache.get(name.split(" / ")[0].strip()) for name in request.names}
 
 
-
-def _normalize_partner_alphabetical(name: str) -> str:
-    """Normalize partner pair to alphabetical order (matches topdeck.gg deckObj key sort)."""
-    if " / " in name and " // " not in name:
-        parts = [p.strip() for p in name.split(" / ", 1)]
-        return " / ".join(sorted(parts))
-    return name
-
-
-async def _fetch_commander_entries(commander: str, time_period: str) -> dict[str, set[str]]:
-    """Fetch {TID: set_of_topdeck_player_ids} for one page of entries (up to 100)."""
-    query = """
-    query GetEntries($name: String!, $timePeriod: TimePeriod!) {
-      commander(name: $name) {
-        entries(
-          first: 100
-          sortBy: NEW
-          filters: { timePeriod: $timePeriod, minEventSize: 0 }
-        ) {
-          edges {
-            node {
-              player { topdeckProfile }
-              tournament { TID }
-            }
-          }
-        }
-      }
-    }
-    """
-    tid_to_players: dict[str, set[str]] = {}
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                "https://edhtop16.com/api/graphql",
-                json={"query": query, "variables": {"name": commander, "timePeriod": time_period}},
-                timeout=30.0,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-        entries = (data.get("data", {}).get("commander") or {}).get("entries", {})
-        for edge in entries.get("edges", []):
-            node = edge["node"]
-            tid = node["tournament"]["TID"]
-            pid = (node.get("player") or {}).get("topdeckProfile")
-            if pid:
-                tid_to_players.setdefault(tid, set()).add(pid)
-    except Exception:
-        pass
-    return tid_to_players
-
-
-async def _fetch_rounds(client: httpx.AsyncClient, tid: str) -> list | None:
-    try:
-        resp = await client.get(
-            f"https://topdeck.gg/api/v2/tournaments/{tid}/rounds",
-            headers={"Authorization": TOPDECK_API_KEY},
-            timeout=15.0,
-        )
-        return resp.json() if resp.status_code == 200 else None
-    except Exception:
-        return None
-
-
-async def _compute_matchups(commander: str, time_period: str) -> dict:
-    tid_to_players = await _fetch_commander_entries(commander, time_period)
-    if not tid_to_players:
-        return {}
-
-    stats: dict[str, dict] = {}
-    tids = list(tid_to_players.keys())
-    batch_size = 5
-
-    async with httpx.AsyncClient() as client:
-        for i in range(0, len(tids), batch_size):
-            batch = tids[i : i + batch_size]
-            results = await asyncio.gather(*[_fetch_rounds(client, tid) for tid in batch])
-            await asyncio.sleep(1.5)  # stay under topdeck.gg 200 req/min limit
-
-            for tid, rounds in zip(batch, results):
-                if not rounds:
-                    continue
-                target_pids = tid_to_players[tid]
-                for round_data in rounds:
-                    for table in round_data.get("tables", []):
-                        if table.get("status") != "Completed":
-                            continue
-                        players = [p for p in table.get("players", []) if p]
-                        if len(players) < 2:
-                            continue
-                        pod = {
-                            p["id"]: " / ".join(sorted(p.get("deckObj", {}).get("Commanders", {}).keys()))
-                            for p in players
-                        }
-                        target_at_table = {pid for pid in target_pids if pid in pod}
-                        if not target_at_table:
-                            continue
-                        winner_id = table.get("winner_id") or None
-                        is_draw = winner_id is None
-                        target_won = winner_id in target_at_table
-                        for pid, opp in pod.items():
-                            if pid in target_at_table or not opp:
-                                continue
-                            s = stats.setdefault(opp, {"pods": 0, "wins": 0, "draws": 0})
-                            s["pods"] += 1
-                            if target_won:
-                                s["wins"] += 1
-                            if is_draw:
-                                s["draws"] += 1
-
-    return {
-        opp: {
-            "pods": s["pods"],
-            "win_rate": round(s["wins"] / s["pods"] * 100, 1),
-            "draw_rate": round(s["draws"] / s["pods"] * 100, 1),
-        }
-        for opp, s in stats.items()
-        if s["pods"] >= 25
-    }
-
-
-@app.get("/api/matchups")
-async def get_matchups(commander: str, time_period: str = "THREE_MONTHS"):
-    valid = {"ONE_MONTH", "THREE_MONTHS", "SIX_MONTHS", "ONE_YEAR", "ALL_TIME"}
-    if time_period not in valid:
-        time_period = "THREE_MONTHS"
-    cache_key = f"{commander}|{time_period}"
-    if cache_key not in _matchup_cache:
-        _matchup_cache[cache_key] = await _compute_matchups(commander, time_period)
-    return _matchup_cache[cache_key]
 
 
 @app.get("/")

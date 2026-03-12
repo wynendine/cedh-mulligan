@@ -696,17 +696,109 @@
         this.matchupsError = '';
         this.matchupsLoading = true;
         try {
-          const r = await fetch(`/api/matchups?commander=${encodeURIComponent(this.commander)}&time_period=${this.timePeriod}`);
-          if (r.ok) {
-            this.matchups = await r.json();
-          } else {
-            this.matchupsError = `Error ${r.status}`;
+          // Check sessionStorage cache first
+          const cacheKey = `matchups|${this.commander}|${this.timePeriod}`;
+          const cached = sessionStorage.getItem(cacheKey);
+          if (cached) { this.matchups = JSON.parse(cached); return; }
+
+          // Step 1: fetch tournament entries from edhtop16
+          const tidToPlayers = await this._matchupFetchEntries();
+          if (Object.keys(tidToPlayers).length === 0) return;
+
+          // Step 2: fetch round data and compute stats
+          const stats = await this._matchupComputeStats(tidToPlayers);
+
+          // Step 3: filter by min GP and build result
+          const result = {};
+          for (const [opp, s] of Object.entries(stats)) {
+            if (s.pods >= 25) {
+              result[opp] = {
+                pods: s.pods,
+                win_rate: Math.round(s.wins / s.pods * 1000) / 10,
+                draw_rate: Math.round(s.draws / s.pods * 1000) / 10,
+              };
+            }
           }
+          this.matchups = result;
+          sessionStorage.setItem(cacheKey, JSON.stringify(result));
         } catch(e) {
           this.matchupsError = e.message;
         } finally {
           this.matchupsLoading = false;
         }
+      },
+
+      async _matchupFetchEntries() {
+        const query = `query GetEntries($name: String!, $timePeriod: TimePeriod!) {
+          commander(name: $name) {
+            entries(first: 100, sortBy: NEW, filters: { timePeriod: $timePeriod, minEventSize: 0 }) {
+              edges { node { player { topdeckProfile } tournament { TID } } }
+            }
+          }
+        }`;
+        const r = await fetch('https://edhtop16.com/api/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, variables: { name: this.commander, timePeriod: this.timePeriod } }),
+        });
+        if (!r.ok) throw new Error(`edhtop16 error: ${r.status}`);
+        const data = await r.json();
+        const tidToPlayers = {};
+        for (const edge of (data?.data?.commander?.entries?.edges ?? [])) {
+          const tid = edge.node.tournament.TID;
+          const pid = edge.node.player?.topdeckProfile;
+          if (pid) {
+            if (!tidToPlayers[tid]) tidToPlayers[tid] = new Set();
+            tidToPlayers[tid].add(pid);
+          }
+        }
+        return tidToPlayers;
+      },
+
+      async _matchupFetchRounds(tid) {
+        try {
+          const r = await fetch(`/api/topdeck-proxy?tid=${encodeURIComponent(tid)}`);
+          return r.ok ? await r.json() : null;
+        } catch { return null; }
+      },
+
+      async _matchupComputeStats(tidToPlayers) {
+        const stats = {};
+        const tids = Object.keys(tidToPlayers);
+        const batchSize = 5;
+        for (let i = 0; i < tids.length; i += batchSize) {
+          const batch = tids.slice(i, i + batchSize);
+          const results = await Promise.all(batch.map(tid => this._matchupFetchRounds(tid)));
+          for (let j = 0; j < batch.length; j++) {
+            const rounds = results[j];
+            if (!rounds) continue;
+            const targetPids = tidToPlayers[batch[j]];
+            for (const round of rounds) {
+              for (const table of (round.tables ?? [])) {
+                if (table.status !== 'Completed') continue;
+                const players = (table.players ?? []).filter(Boolean);
+                if (players.length < 2) continue;
+                const pod = {};
+                for (const p of players) {
+                  pod[p.id] = Object.keys(p.deckObj?.Commanders ?? {}).sort().join(' / ');
+                }
+                const targetAtTable = new Set([...targetPids].filter(pid => pid in pod));
+                if (targetAtTable.size === 0) continue;
+                const winnerId = table.winner_id || null;
+                const targetWon = winnerId && targetAtTable.has(winnerId);
+                for (const [pid, opp] of Object.entries(pod)) {
+                  if (targetAtTable.has(pid) || !opp) continue;
+                  if (!stats[opp]) stats[opp] = { pods: 0, wins: 0, draws: 0 };
+                  stats[opp].pods++;
+                  if (targetWon) stats[opp].wins++;
+                  if (!winnerId) stats[opp].draws++;
+                }
+              }
+            }
+          }
+          if (i + batchSize < tids.length) await new Promise(r => setTimeout(r, 1500));
+        }
+        return stats;
       },
 
       matchupFor(name) {
