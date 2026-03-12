@@ -787,7 +787,6 @@
           .sort((a, b) => a.seat - b.seat)
           .map(s => ({ seat: s.seat, name: s.name, isYou: s.isYou, mulliganCount: 0, kept: false }));
         this.podDecidingSeat = this.podMulligans[0]?.seat ?? null;
-        this.podCollapsed = true;
         this.runPodTurn();
       },
 
