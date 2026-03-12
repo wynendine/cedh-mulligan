@@ -195,8 +195,7 @@
         <div x-show="!commandersCollapsed" class="flex flex-col gap-1">
           <template x-for="seat in seats" :key="seat.seat">
             <div class="flex items-center justify-between rounded-xl px-3 py-2"
-              :class="seat.isYou ? 'bg-gray-800' : 'bg-gray-900/50'"
-              x-data="{ get m() { return matchupFor(seat.name); } }">
+              :class="seat.isYou ? 'bg-gray-800' : 'bg-gray-900/50'">
               <div class="flex items-center gap-2 min-w-0">
                 <span class="text-xs font-bold flex-shrink-0"
                   :class="seat.isYou ? 'text-purple-400' : 'text-gray-500'"
@@ -217,23 +216,21 @@
                 <template x-if="!seat.isYou">
                   <div class="flex items-center gap-3">
                     <div x-show="matchupsLoading" class="text-xs text-gray-600">loading…</div>
-                    <template x-if="!matchupsLoading">
-                      <div class="flex items-center gap-3">
-                        <div x-show="m" class="text-xs flex gap-0.5">
-                          <span class="text-gray-300">GP:</span>
-                          <span class="text-gray-400" x-text="m ? m.pods : ''"></span>
-                        </div>
-                        <div x-show="m" class="text-xs flex gap-0.5">
-                          <span class="text-gray-300">WR:</span>
-                          <span class="text-gray-400" x-text="m ? m.win_rate + '%' : ''"></span>
-                        </div>
-                        <div x-show="m" class="text-xs flex gap-0.5">
-                          <span class="text-gray-300">DR:</span>
-                          <span class="text-gray-400" x-text="m ? m.draw_rate + '%' : ''"></span>
-                        </div>
-                        <div x-show="!m" class="text-xs text-gray-600">—</div>
+                    <div x-show="!matchupsLoading && matchupFor(seat.name)" class="flex items-center gap-3">
+                      <div class="text-xs flex gap-0.5">
+                        <span class="text-gray-300">GP:</span>
+                        <span class="text-gray-400" x-text="matchupFor(seat.name)?.pods"></span>
                       </div>
-                    </template>
+                      <div class="text-xs flex gap-0.5">
+                        <span class="text-gray-300">WR:</span>
+                        <span class="text-gray-400" x-text="matchupFor(seat.name)?.win_rate + '%'"></span>
+                      </div>
+                      <div class="text-xs flex gap-0.5">
+                        <span class="text-gray-300">DR:</span>
+                        <span class="text-gray-400" x-text="matchupFor(seat.name)?.draw_rate + '%'"></span>
+                      </div>
+                    </div>
+                    <div x-show="!matchupsLoading && !matchupFor(seat.name)" class="text-xs text-gray-600">—</div>
                   </div>
                 </template>
               </div>
