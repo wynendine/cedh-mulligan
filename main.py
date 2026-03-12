@@ -394,12 +394,13 @@ async def _compute_matchups(commander: str, time_period: str) -> dict:
                             continue
                         winner_id = table.get("winner_id") or None
                         is_draw = winner_id is None
+                        target_won = winner_id in target_at_table
                         for pid, opp in pod.items():
                             if pid in target_at_table or not opp:
                                 continue
                             s = stats.setdefault(opp, {"pods": 0, "wins": 0, "draws": 0})
                             s["pods"] += 1
-                            if winner_id == pid:
+                            if target_won:
                                 s["wins"] += 1
                             if is_draw:
                                 s["draws"] += 1
@@ -411,7 +412,7 @@ async def _compute_matchups(commander: str, time_period: str) -> dict:
             "draw_rate": round(s["draws"] / s["pods"] * 100, 1),
         }
         for opp, s in stats.items()
-        if s["pods"] > 0
+        if s["pods"] >= 25
     }
 
 
