@@ -181,28 +181,29 @@
                 <template x-if="seat.isYou">
                   <div>
                     <div class="text-xs text-purple-400 font-semibold leading-tight">You</div>
-                    <div x-show="seat.win_rate !== null" class="text-xs leading-tight flex justify-center gap-0.5">
-                      <span class="text-purple-400">WR:</span>
-                      <span class="text-purple-200" x-text="seat.win_rate + '%'"></span>
-                    </div>
-                    <div x-show="seat.meta_share !== null" class="text-xs leading-tight flex justify-center gap-0.5">
-                      <span class="text-purple-400">MS:</span>
-                      <span class="text-purple-200" x-text="seat.meta_share + '%'"></span>
-                    </div>
+                    <template x-if="podMulligans.length > 0">
+                      <div x-data="{ pm: podMulligans.find(p => p.seat === seat.seat) }">
+                        <div x-show="pm && pm.kept" class="text-xs leading-tight text-green-600 font-semibold"
+                          x-text="pm && pm.mulliganCount > 0 ? 'Kept (' + pm.mulliganCount + ')' : 'Kept'"></div>
+                        <div x-show="pm && !pm.kept && pm.mulliganCount > 0" class="text-xs leading-tight text-gray-400"
+                          x-text="'Mull ' + (pm ? pm.mulliganCount : '')"></div>
+                      </div>
+                    </template>
                   </div>
                 </template>
                 <template x-if="!seat.isYou">
                   <div>
                     <div class="text-xs text-gray-300 leading-tight truncate" x-text="seat.name.split(' / ')[0]"></div>
                     <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ')" class="text-xs text-gray-500 leading-tight truncate" x-text="'+ ' + seat.name.split(' / ')[1]"></div>
-                    <div class="text-xs leading-tight flex justify-center gap-0.5">
-                      <span class="text-gray-300">WR:</span>
-                      <span class="text-gray-400" x-text="seat.win_rate + '%'"></span>
-                    </div>
-                    <div class="text-xs leading-tight flex justify-center gap-0.5">
-                      <span class="text-gray-300">MS:</span>
-                      <span class="text-gray-400" x-text="seat.meta_share + '%'"></span>
-                    </div>
+                    <template x-if="podMulligans.length > 0">
+                      <div x-data="{ pm: podMulligans.find(p => p.seat === seat.seat) }">
+                        <div x-show="pm && podDecidingSeat === pm.seat" class="text-xs leading-tight text-gray-500 animate-pulse">deciding…</div>
+                        <div x-show="pm && pm.kept" class="text-xs leading-tight text-green-600 font-semibold"
+                          x-text="pm && pm.mulliganCount > 0 ? 'Kept (' + pm.mulliganCount + ')' : 'Kept'"></div>
+                        <div x-show="pm && !pm.kept && podDecidingSeat !== pm.seat && pm.mulliganCount > 0" class="text-xs leading-tight text-gray-400"
+                          x-text="'Mull ' + (pm ? pm.mulliganCount : '')"></div>
+                      </div>
+                    </template>
                   </div>
                 </template>
               </div>
@@ -210,58 +211,29 @@
           </template>
         </div>
 
-        <!-- Stats key — only visible when grid is expanded -->
-        <div x-show="seats.length > 0 && !podCollapsed" class="flex justify-end gap-4 text-xs text-gray-500 px-1 mt-1.5">
-          <span><span class="text-gray-400">WR</span> = Win Rate</span>
-          <span><span class="text-gray-400">MS</span> = Meta Share</span>
-        </div>
-
       </div>
 
-      <!-- ── POD MULLIGAN TRACKER ── -->
-      <div x-show="podMulligans.length > 0">
-        <div class="flex items-center justify-between mb-2">
-          <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Pod Mulligans</h2>
-          <button @click="resetPodTracker()" class="text-xs text-gray-500 hover:text-gray-300">Reset ↺</button>
+      <!-- ── YOUR TURN PROMPT ── -->
+      <div x-show="podDecidingSeat !== null && podMulligans.find(p => p.seat === podDecidingSeat)?.isYou"
+        class="flex items-center justify-between bg-gray-800 rounded-xl px-3 py-2.5">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-purple-400">Your turn</span>
+          <span x-show="podMulligans.find(p => p.isYou)?.mulliganCount > 0"
+            class="text-xs text-gray-500"
+            x-text="'(Mull ' + (podMulligans.find(p => p.isYou)?.mulliganCount || 0) + ')'"></span>
         </div>
-        <div class="flex flex-col gap-1">
-          <template x-for="p in podMulligans" :key="p.seat">
-            <div class="flex items-center justify-between rounded-xl px-3 py-2 transition-colors"
-              :class="podDecidingSeat === p.seat ? 'bg-gray-800' : 'bg-gray-900/50'">
-              <!-- Name -->
-              <div class="flex items-center gap-2 min-w-0">
-                <span class="text-xs font-bold flex-shrink-0"
-                  :class="p.isYou ? 'text-purple-400' : 'text-gray-500'"
-                  x-text="'S' + p.seat"></span>
-                <span class="text-sm truncate max-w-40"
-                  :class="p.kept ? 'text-gray-500' : p.isYou ? 'text-purple-300' : 'text-gray-300'"
-                  x-text="p.name.split(' / ')[0]"></span>
-              </div>
-              <!-- Right side: status + buttons -->
-              <div class="flex items-center gap-1.5 flex-shrink-0">
-                <!-- Kept badge -->
-                <span x-show="p.kept"
-                  class="text-xs px-2 py-0.5 rounded-full font-bold"
-                  style="background:rgba(220,252,231,0.95); color:#008000;"
-                  x-text="p.mulliganCount > 0 ? 'Kept (' + p.mulliganCount + ')' : 'Kept'"></span>
-                <!-- Auto-deciding indicator -->
-                <span x-show="!p.kept && podDecidingSeat === p.seat && !p.isYou"
-                  class="text-xs text-gray-500 animate-pulse">deciding…</span>
-                <!-- Mull count while waiting -->
-                <span x-show="!p.kept && podDecidingSeat !== p.seat && p.mulliganCount > 0"
-                  class="text-xs text-gray-500 font-medium"
-                  x-text="'Mull ' + p.mulliganCount"></span>
-                <!-- Keep / Mull buttons — only for your seat -->
-                <div x-show="podDecidingSeat === p.seat && p.isYou" class="flex gap-1">
-                  <button @click="podKeep()"
-                    class="text-xs bg-green-900 hover:bg-green-800 text-green-300 px-2.5 py-1 rounded-lg font-medium">Keep</button>
-                  <button @click="podMull()"
-                    class="text-xs bg-orange-900/70 hover:bg-orange-800/70 text-orange-300 px-2.5 py-1 rounded-lg font-medium">Mull</button>
-                </div>
-              </div>
-            </div>
-          </template>
+        <div class="flex items-center gap-2">
+          <button @click="resetPodTracker()" class="text-xs text-gray-600 hover:text-gray-400">Reset ↺</button>
+          <button @click="podKeep()"
+            class="text-xs bg-green-900 hover:bg-green-800 text-green-300 px-3 py-1.5 rounded-lg font-semibold">Keep</button>
+          <button @click="podMull()"
+            class="text-xs bg-orange-900/70 hover:bg-orange-800/70 text-orange-300 px-3 py-1.5 rounded-lg font-semibold">Mull</button>
         </div>
+      </div>
+
+      <!-- Reset button when all decided -->
+      <div x-show="podMulligans.length > 0 && podDecidingSeat === null" class="flex justify-end">
+        <button @click="resetPodTracker()" class="text-xs text-gray-600 hover:text-gray-400">Reset Pod ↺</button>
       </div>
 
       <!-- ── DIVIDER ── -->
