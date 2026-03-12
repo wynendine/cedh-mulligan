@@ -404,7 +404,7 @@
               class="flex-1 bg-purple-700 hover:bg-purple-600 active:bg-purple-800 rounded-2xl py-3.5 font-semibold text-base transition-colors"
             >New Hand</button>
             <button
-              @click="rerollPod(); drawAgain()"
+              @click="podMulligans = []; podDecidingSeat = null; rerollPod(); drawAgain()"
               class="flex-1 bg-gray-700 hover:bg-gray-600 active:bg-gray-800 rounded-2xl py-3.5 font-semibold text-base transition-colors"
             >New Pod</button>
           </div>
