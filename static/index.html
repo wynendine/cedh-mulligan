@@ -241,15 +241,18 @@
                   class="text-xs px-2 py-0.5 rounded-full font-bold"
                   style="background:rgba(220,252,231,0.95); color:#008000;"
                   x-text="p.mulliganCount > 0 ? 'Kept (' + p.mulliganCount + ')' : 'Kept'"></span>
-                <!-- Waiting with mull count -->
+                <!-- Auto-deciding indicator -->
+                <span x-show="!p.kept && podDecidingSeat === p.seat && !p.isYou"
+                  class="text-xs text-gray-500 animate-pulse">deciding…</span>
+                <!-- Mull count while waiting -->
                 <span x-show="!p.kept && podDecidingSeat !== p.seat && p.mulliganCount > 0"
                   class="text-xs text-gray-500 font-medium"
                   x-text="'Mull ' + p.mulliganCount"></span>
-                <!-- Keep / Mull buttons -->
-                <div x-show="podDecidingSeat === p.seat" class="flex gap-1">
-                  <button @click="podKeep(p.seat)"
+                <!-- Keep / Mull buttons — only for your seat -->
+                <div x-show="podDecidingSeat === p.seat && p.isYou" class="flex gap-1">
+                  <button @click="podKeep()"
                     class="text-xs bg-green-900 hover:bg-green-800 text-green-300 px-2.5 py-1 rounded-lg font-medium">Keep</button>
-                  <button @click="podMull(p.seat)"
+                  <button @click="podMull()"
                     class="text-xs bg-orange-900/70 hover:bg-orange-800/70 text-orange-300 px-2.5 py-1 rounded-lg font-medium">Mull</button>
                 </div>
               </div>
@@ -808,31 +811,51 @@
           .sort((a, b) => a.seat - b.seat)
           .map(s => ({ seat: s.seat, name: s.name, isYou: s.isYou, mulliganCount: 0, kept: false }));
         this.podDecidingSeat = this.podMulligans[0]?.seat ?? null;
+        this.runPodTurn();
       },
 
-      podKeep(seat) {
-        const p = this.podMulligans.find(p => p.seat === seat);
-        if (p) p.kept = true;
-        this.advancePodTurn(seat);
+      // Auto-advance through non-player seats; pause when it's your turn
+      async runPodTurn() {
+        const keepOdds = [0.30, 0.50, 0.65, 0.80, 0.95];
+        while (this.podDecidingSeat !== null) {
+          const p = this.podMulligans.find(p => p.seat === this.podDecidingSeat);
+          if (!p || p.kept) { this._nextPodSeat(); continue; }
+          if (p.isYou) return; // wait for user
+          await new Promise(r => setTimeout(r, 500));
+          const prob = keepOdds[Math.min(p.mulliganCount, keepOdds.length - 1)];
+          if (Math.random() < prob) { p.kept = true; }
+          else { p.mulliganCount++; }
+          this._nextPodSeat();
+        }
       },
 
-      async podMull(seat) {
-        const p = this.podMulligans.find(p => p.seat === seat);
-        if (p) p.mulliganCount++;
-        if (p?.isYou) await this.mulligan();
-        this.advancePodTurn(seat);
-      },
-
-      advancePodTurn(fromSeat) {
+      _nextPodSeat() {
+        const from = this.podDecidingSeat;
         const undecided = this.podMulligans.filter(p => !p.kept);
         if (undecided.length === 0) { this.podDecidingSeat = null; return; }
-        const next = undecided.find(p => p.seat > fromSeat) || undecided[0];
+        const next = undecided.find(p => p.seat > from) || undecided[0];
         this.podDecidingSeat = next.seat;
+      },
+
+      podKeep() {
+        const p = this.podMulligans.find(p => p.seat === this.podDecidingSeat);
+        if (p) p.kept = true;
+        this._nextPodSeat();
+        this.runPodTurn();
+      },
+
+      async podMull() {
+        const p = this.podMulligans.find(p => p.seat === this.podDecidingSeat);
+        if (p) p.mulliganCount++;
+        await this.mulligan();
+        this._nextPodSeat();
+        this.runPodTurn();
       },
 
       resetPodTracker() {
         this.podMulligans.forEach(p => { p.mulliganCount = 0; p.kept = false; });
         this.podDecidingSeat = this.podMulligans[0]?.seat ?? null;
+        this.runPodTurn();
       },
 
       goToSetup() {
