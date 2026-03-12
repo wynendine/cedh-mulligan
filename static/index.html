@@ -213,24 +213,6 @@
 
       </div>
 
-      <!-- ── YOUR TURN PROMPT ── -->
-      <div x-show="podDecidingSeat !== null && podMulligans.find(p => p.seat === podDecidingSeat)?.isYou"
-        class="flex items-center justify-between bg-gray-800 rounded-xl px-3 py-2.5">
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-semibold text-purple-400">Your turn</span>
-          <span x-show="podMulligans.find(p => p.isYou)?.mulliganCount > 0"
-            class="text-xs text-gray-500"
-            x-text="'(Mull ' + (podMulligans.find(p => p.isYou)?.mulliganCount || 0) + ')'"></span>
-        </div>
-        <div class="flex items-center gap-2">
-          <button @click="resetPodTracker()" class="text-xs text-gray-600 hover:text-gray-400">Reset ↺</button>
-          <button @click="podKeep()"
-            class="text-xs bg-green-900 hover:bg-green-800 text-green-300 px-3 py-1.5 rounded-lg font-semibold">Keep</button>
-          <button @click="podMull()"
-            class="text-xs bg-orange-900/70 hover:bg-orange-800/70 text-orange-300 px-3 py-1.5 rounded-lg font-semibold">Mull</button>
-        </div>
-      </div>
-
       <!-- Reset button when all decided -->
       <div x-show="podMulligans.length > 0 && podDecidingSeat === null" class="flex justify-end">
         <button @click="resetPodTracker()" class="text-xs text-gray-600 hover:text-gray-400">Reset Pod ↺</button>
@@ -732,11 +714,16 @@
       keepHand() {
         this.drawnCards = [];
         if (this.mulliganCount === 0 || this.cardsToBottom === 0) {
-          // No cards to put back (no mulligans taken, or free first mulligan)
           this.handState = 'kept';
         } else {
-          // Choose cardsToBottom cards to put on the bottom
           this.handState = 'selecting';
+        }
+        // Advance pod tracker if it's your turn
+        const myPod = this.podMulligans.find(p => p.isYou);
+        if (myPod && this.podDecidingSeat === myPod.seat) {
+          myPod.kept = true;
+          this._nextPodSeat();
+          this.runPodTurn();
         }
       },
 
@@ -752,7 +739,14 @@
           const imageMap = await this.fetchImages(names);
           this.hand = names.map(name => ({ name, image_url: imageMap[name] || null }));
           this.selectedIndices = [];
-          this.handState = 'drawn'; // Always back to drawn — keep mulliganing or keep hand
+          this.handState = 'drawn';
+          // Advance pod tracker if it's your turn
+          const myPod = this.podMulligans.find(p => p.isYou);
+          if (myPod && this.podDecidingSeat === myPod.seat) {
+            myPod.mulliganCount++;
+            this._nextPodSeat();
+            this.runPodTurn();
+          }
         } finally {
           this.handLoading = false;
         }
@@ -820,12 +814,8 @@
         this.runPodTurn();
       },
 
-      async podMull() {
-        const p = this.podMulligans.find(p => p.seat === this.podDecidingSeat);
-        if (p) p.mulliganCount++;
-        await this.mulligan();
-        this._nextPodSeat();
-        this.runPodTurn();
+      podMull() {
+        // No-op: mulligan() handles pod tracker advancement when it's your turn
       },
 
       resetPodTracker() {
