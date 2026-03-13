@@ -169,12 +169,13 @@
                 <template x-if="podMulligans.length > 0">
                   <div x-data="{ pm: podMulligans.find(p => p.seat === seat.seat) }">
                     <div x-show="pm && podDecidingSeat === pm.seat && !pm.isYou"
-                      class="text-xs leading-tight text-gray-500 animate-pulse">deciding…</div>
+                      class="text-xs leading-tight text-gray-500 animate-pulse"
+                      x-text="handLabelText(pm.mulliganCount)"></div>
                     <div x-show="pm && pm.kept" class="text-xs leading-tight text-green-600 font-semibold"
-                      x-text="pm && pm.mulliganCount > 0 ? 'Kept (' + pm.mulliganCount + ')' : 'Kept'"></div>
-                    <div x-show="pm && !pm.kept && !(podDecidingSeat === pm.seat && !pm.isYou) && pm.mulliganCount > 0"
+                      x-text="'Kept ' + handLabelText(pm.mulliganCount)"></div>
+                    <div x-show="pm && !pm.kept && !(podDecidingSeat === pm.seat && !pm.isYou)"
                       class="text-xs leading-tight text-gray-400"
-                      x-text="'Mull ' + (pm ? pm.mulliganCount : '')"></div>
+                      x-text="handLabelText(pm.mulliganCount)"></div>
                   </div>
                 </template>
               </div>
@@ -532,6 +533,10 @@
         const totalPods = entries.reduce((sum, m) => sum + m.pods, 0);
         if (totalPods === 0) return null;
         return Math.round(entries.reduce((sum, m) => sum + m.pods * m.draw_rate, 0) / totalPods * 10) / 10;
+      },
+      handLabelText(n) {
+        const texts = ['First 7', 'Second 7', 'Mull to 6', 'Mull to 5', 'Mull to 4', 'Mull to 3', 'Mull to 2', 'Mull to 1'];
+        return texts[Math.min(n, texts.length - 1)];
       },
       get handLabel() {
         const labels = [
