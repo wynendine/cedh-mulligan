@@ -696,14 +696,14 @@
         this.matchupsError = '';
         this.matchupsLoading = true;
         try {
-          // Check sessionStorage cache first
-          const cacheKey = `matchups|${this.commander}|${this.timePeriod}`;
+          // Check sessionStorage cache first (v2 key busts stale caches)
+          const cacheKey = `matchups_v2|${this.commander}|${this.timePeriod}`;
           const cached = sessionStorage.getItem(cacheKey);
           if (cached) { this.matchups = JSON.parse(cached); return; }
 
           // Step 1: fetch tournament entries from edhtop16
           const tidToPlayers = await this._matchupFetchEntries();
-          if (Object.keys(tidToPlayers).length === 0) return;
+          if (Object.keys(tidToPlayers).length === 0) { this.matchupsError = 'No tournament entries found'; return; }
 
           // Step 2: fetch round data and compute stats
           const stats = await this._matchupComputeStats(tidToPlayers);
@@ -720,7 +720,10 @@
             }
           }
           this.matchups = result;
-          sessionStorage.setItem(cacheKey, JSON.stringify(result));
+          // Only cache non-empty results to avoid masking failures
+          if (Object.keys(result).length > 0) {
+            sessionStorage.setItem(cacheKey, JSON.stringify(result));
+          }
         } catch(e) {
           this.matchupsError = e.message;
         } finally {
