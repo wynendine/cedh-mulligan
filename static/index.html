@@ -183,9 +183,9 @@
         </div>
       </div>
 
-      <!-- Matchup debug banner (always visible during session) -->
-      <div x-show="phase === 'session'" class="text-xs text-yellow-400 bg-gray-900 rounded px-2 py-1 mb-2"
-        x-text="`dbg: cmd=${commander} | loading=${matchupsLoading} | debug=${matchupsDebug}`"></div>
+      <!-- Matchup debug banner -->
+      <div class="text-xs text-yellow-400 bg-gray-900 rounded px-2 py-1 mb-2"
+        x-text="'dbg: cmd=' + commander + ' loading=' + matchupsLoading + ' ' + matchupsDebug"></div>
 
       <!-- ── COMMANDERS (collapsible compact list with WR/MS) ── -->
       <div x-show="seats.length > 0">
