@@ -163,7 +163,7 @@
                     :class="seat.isYou ? 'text-purple-400' : 'text-gray-300'"
                     x-text="seat.isYou ? 'You' : seat.name.split(' / ')[0]"></div>
                   <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ') && !seat.isYou"
-                    class="text-xs text-gray-500 leading-tight truncate"
+                    class="text-xs leading-tight truncate text-gray-300"
                     x-text="'+ ' + seat.name.split(' / ')[1]"></div>
                 </div>
                 <template x-if="podMulligans.length > 0">
@@ -213,7 +213,8 @@
                     :class="seat.isYou ? 'text-purple-300' : 'text-gray-300'"
                     x-text="seat.name.split(' / ')[0]"></div>
                   <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ')"
-                    class="text-xs text-gray-500 truncate"
+                    class="text-xs truncate"
+                    :class="seat.isYou ? 'text-purple-300' : 'text-gray-300'"
                     x-text="'+ ' + seat.name.split(' / ')[1]"></div>
                 </div>
               </div>
