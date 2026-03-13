@@ -191,6 +191,7 @@
             <span>Pod Statistics</span>
             <span x-text="commandersCollapsed ? '▸' : '▾'" class="text-base text-gray-400"></span>
           </button>
+          <span x-show="matchupsDebug" class="text-xs text-yellow-500" x-text="matchupsDebug"></span>
         </div>
         <div x-show="!commandersCollapsed" class="flex flex-col gap-1">
           <template x-for="seat in seats" :key="seat.seat">
@@ -216,7 +217,6 @@
                 <template x-if="!seat.isYou">
                   <div class="flex items-center gap-3">
                     <div x-show="matchupsLoading" class="text-xs text-gray-600">loading…</div>
-                    <div x-show="!matchupsLoading && matchupsError" class="text-xs text-red-500" x-text="matchupsError"></div>
                     <div x-show="!matchupsLoading && matchupFor(seat.name)" class="flex items-center gap-3">
                       <div class="text-xs flex gap-0.5">
                         <span class="text-gray-300">GP:</span>
@@ -508,6 +508,7 @@
       matchups: {},        // {normalizedOpponentName: {pods, win_rate, draw_rate}}
       matchupsLoading: false,
       matchupsError: '',
+      matchupsDebug: '',   // diagnostic string shown in Pod Statistics header
 
       // Hand
       hand: [],
@@ -694,22 +695,28 @@
       async fetchMatchups() {
         this.matchups = {};
         this.matchupsError = '';
+        this.matchupsDebug = '';
         this.matchupsLoading = true;
         try {
-          // Check sessionStorage cache first (v2 key busts stale caches)
-          const cacheKey = `matchups_v2|${this.commander}|${this.timePeriod}`;
+          const cacheKey = `matchups_v3|${this.commander}|${this.timePeriod}`;
           const cached = sessionStorage.getItem(cacheKey);
           if (cached) { this.matchups = JSON.parse(cached); return; }
+
+          console.log('[matchups] commander:', this.commander, 'timePeriod:', this.timePeriod);
 
           // Step 1: fetch tournament entries from edhtop16
           const tidToPlayers = await this._matchupFetchEntries();
           const tidCount = Object.keys(tidToPlayers).length;
-          if (tidCount === 0) { this.matchupsError = 'No tournament entries found'; return; }
-          this.matchupsError = `DEBUG: ${tidCount} tournaments found, fetching rounds…`;
+          console.log('[matchups] tournaments found:', tidCount, tidToPlayers);
+          if (tidCount === 0) {
+            this.matchupsDebug = `0 tournaments for "${this.commander}"`;
+            return;
+          }
 
           // Step 2: fetch round data and compute stats
-          const stats = await this._matchupComputeStats(tidToPlayers);
+          const { stats, roundsFetched, roundsFailed } = await this._matchupComputeStats(tidToPlayers);
           const rawCount = Object.keys(stats).length;
+          console.log('[matchups] rounds fetched:', roundsFetched, 'failed:', roundsFailed, 'raw opponents:', rawCount, stats);
 
           // Step 3: filter by min GP and build result (threshold=1 for debug)
           const result = {};
@@ -722,14 +729,16 @@
               };
             }
           }
-          this.matchupsError = `DEBUG: ${tidCount} tournaments, ${rawCount} opponents (threshold=1)`;
+          const finalCount = Object.keys(result).length;
+          console.log('[matchups] final opponents after filter:', finalCount, result);
+          this.matchupsDebug = `${tidCount}T ${roundsFetched}R ${rawCount}opp${roundsFailed > 0 ? ` (${roundsFailed} fail)` : ''}`;
           this.matchups = result;
-          // Only cache non-empty results to avoid masking failures
-          if (Object.keys(result).length > 0) {
+          if (finalCount > 0) {
             sessionStorage.setItem(cacheKey, JSON.stringify(result));
           }
         } catch(e) {
-          this.matchupsError = e.message;
+          console.error('[matchups] error:', e);
+          this.matchupsDebug = `ERR: ${e.message}`;
         } finally {
           this.matchupsLoading = false;
         }
@@ -771,6 +780,7 @@
 
       async _matchupComputeStats(tidToPlayers) {
         const stats = {};
+        let roundsFetched = 0, roundsFailed = 0;
         const tids = Object.keys(tidToPlayers);
         const batchSize = 5;
         for (let i = 0; i < tids.length; i += batchSize) {
@@ -778,7 +788,8 @@
           const results = await Promise.all(batch.map(tid => this._matchupFetchRounds(tid)));
           for (let j = 0; j < batch.length; j++) {
             const rounds = results[j];
-            if (!rounds) continue;
+            if (!rounds) { roundsFailed++; continue; }
+            roundsFetched++;
             const targetPids = tidToPlayers[batch[j]];
             for (const round of rounds) {
               for (const table of (round.tables ?? [])) {
@@ -805,7 +816,7 @@
           }
           if (i + batchSize < tids.length) await new Promise(r => setTimeout(r, 1500));
         }
-        return stats;
+        return { stats, roundsFetched, roundsFailed };
       },
 
       matchupFor(name) {
