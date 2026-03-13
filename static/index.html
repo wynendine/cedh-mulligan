@@ -315,7 +315,7 @@
           <div
             class="flex-shrink-0 transition-transform duration-150 cursor-pointer"
             :class="{
-              'card-selected rounded-xl -translate-y-4': selectedIndices.includes(idx),
+              'card-selected rounded-xl': selectedIndices.includes(idx),
               'opacity-40': handState === 'selecting' && selectedIndices.length >= cardsToBottom && !selectedIndices.includes(idx)
             }"
             :style="{
