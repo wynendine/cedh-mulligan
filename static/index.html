@@ -736,7 +736,7 @@
             }
           }
         }`;
-        const r = await fetch('https://edhtop16.com/api/graphql', {
+        const r = await fetch('/api/edhtop16-proxy', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query, variables: { name: this.commander, timePeriod: this.timePeriod } }),

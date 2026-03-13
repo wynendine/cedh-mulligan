@@ -11,6 +11,11 @@
       "config": { "runtime": "edge" }
     },
     {
+      "src": "api/edhtop16-proxy.js",
+      "use": "@vercel/node",
+      "config": { "runtime": "edge" }
+    },
+    {
       "src": "main.py",
       "use": "@vercel/python",
       "config": {
@@ -27,6 +32,7 @@
   "routes": [
     { "src": "/api/moxfield", "dest": "/api/moxfield.js" },
     { "src": "/api/topdeck-proxy", "dest": "/api/topdeck-proxy.js" },
+    { "src": "/api/edhtop16-proxy", "dest": "/api/edhtop16-proxy.js" },
     { "src": "/(.*)", "dest": "main.py" }
   ]
 }
