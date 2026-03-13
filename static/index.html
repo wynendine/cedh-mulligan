@@ -183,9 +183,6 @@
         </div>
       </div>
 
-      <!-- Matchup debug banner -->
-      <div style="background:red;color:white;font-weight:bold;padding:6px;margin-bottom:8px;font-size:13px;">VER:21 <span x-text="commander + ' | ' + matchupsLoading + ' | ' + matchupsDebug"></span></div>
-
       <!-- ── COMMANDERS (collapsible compact list with WR/MS) ── -->
       <div x-show="seats.length > 0">
         <div class="flex items-center justify-between mb-2">
@@ -194,7 +191,6 @@
             <span>Pod Statistics</span>
             <span x-text="commandersCollapsed ? '▸' : '▾'" class="text-base text-gray-400"></span>
           </button>
-          <span x-show="matchupsDebug" class="text-xs text-yellow-500" x-text="matchupsDebug"></span>
         </div>
         <div x-show="!commandersCollapsed" class="flex flex-col gap-1">
           <template x-for="seat in seats" :key="seat.seat">
@@ -510,8 +506,6 @@
       // Matchup data
       matchups: {},        // {normalizedOpponentName: {pods, win_rate, draw_rate}}
       matchupsLoading: false,
-      matchupsError: '',
-      matchupsDebug: '',   // diagnostic string shown in Pod Statistics header
 
       // Hand
       hand: [],
@@ -697,129 +691,24 @@
 
       async fetchMatchups() {
         this.matchups = {};
-        this.matchupsError = '';
-        this.matchupsDebug = `searching: ${this.commander}`;
         this.matchupsLoading = true;
         try {
-          const cacheKey = `matchups_v3|${this.commander}|${this.timePeriod}`;
+          const cacheKey = `matchups_v4|${this.commander}|${this.timePeriod}`;
           const cached = sessionStorage.getItem(cacheKey);
-          if (cached) { this.matchups = JSON.parse(cached); this.matchupsDebug = 'cached'; return; }
+          if (cached) { this.matchups = JSON.parse(cached); return; }
 
-          console.log('[matchups] commander:', this.commander, 'timePeriod:', this.timePeriod);
-
-          // Step 1: fetch tournament entries from edhtop16
-          const tidToPlayers = await this._matchupFetchEntries();
-          const tidCount = Object.keys(tidToPlayers).length;
-          console.log('[matchups] tournaments found:', tidCount, tidToPlayers);
-          if (tidCount === 0) {
-            this.matchupsDebug = `0 tournaments for "${this.commander}"`;
-            return;
-          }
-
-          // Step 2: fetch round data and compute stats
-          const { stats, roundsFetched, roundsFailed } = await this._matchupComputeStats(tidToPlayers);
-          const rawCount = Object.keys(stats).length;
-          console.log('[matchups] rounds fetched:', roundsFetched, 'failed:', roundsFailed, 'raw opponents:', rawCount, stats);
-
-          // Step 3: filter by min GP and build result (threshold=1 for debug)
-          const result = {};
-          for (const [opp, s] of Object.entries(stats)) {
-            if (s.pods >= 1) {
-              result[opp] = {
-                pods: s.pods,
-                win_rate: Math.round(s.wins / s.pods * 1000) / 10,
-                draw_rate: Math.round(s.draws / s.pods * 1000) / 10,
-              };
-            }
-          }
-          const finalCount = Object.keys(result).length;
-          console.log('[matchups] final opponents after filter:', finalCount, result);
-          this.matchupsDebug = `${tidCount}T ${roundsFetched}R ${rawCount}opp${roundsFailed > 0 ? ` (${roundsFailed} fail)` : ''}`;
-          this.matchups = result;
-          if (finalCount > 0) {
-            sessionStorage.setItem(cacheKey, JSON.stringify(result));
+          const r = await fetch(`/api/matchups?commander=${encodeURIComponent(this.commander)}&time_period=${this.timePeriod}`);
+          if (!r.ok) throw new Error(`matchups error: ${r.status}`);
+          const data = await r.json();
+          this.matchups = data.matchups || {};
+          if (Object.keys(this.matchups).length > 0) {
+            sessionStorage.setItem(cacheKey, JSON.stringify(this.matchups));
           }
         } catch(e) {
-          console.error('[matchups] error:', e);
-          this.matchupsDebug = `ERR: ${e.message}`;
+          // silently fail — opponents just show —
         } finally {
           this.matchupsLoading = false;
         }
-      },
-
-      async _matchupFetchEntries() {
-        const query = `query GetEntries($name: String!, $timePeriod: TimePeriod!) {
-          commander(name: $name) {
-            entries(first: 100, sortBy: NEW, filters: { timePeriod: $timePeriod, minEventSize: 0 }) {
-              edges { node { player { topdeckProfile } tournament { TID } } }
-            }
-          }
-        }`;
-        const r = await fetch('/api/edhtop16-proxy', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, variables: { name: this.commander, timePeriod: this.timePeriod } }),
-        });
-        if (!r.ok) throw new Error(`edhtop16 error: ${r.status}`);
-        const data = await r.json();
-        const tidToPlayers = {};
-        for (const edge of (data?.data?.commander?.entries?.edges ?? [])) {
-          const tid = edge.node.tournament.TID;
-          const pid = edge.node.player?.topdeckProfile;
-          if (pid) {
-            if (!tidToPlayers[tid]) tidToPlayers[tid] = new Set();
-            tidToPlayers[tid].add(pid);
-          }
-        }
-        return tidToPlayers;
-      },
-
-      async _matchupFetchRounds(tid) {
-        try {
-          const r = await fetch(`/api/topdeck-rounds?tid=${encodeURIComponent(tid)}`);
-          return r.ok ? await r.json() : null;
-        } catch { return null; }
-      },
-
-      async _matchupComputeStats(tidToPlayers) {
-        const stats = {};
-        let roundsFetched = 0, roundsFailed = 0;
-        const tids = Object.keys(tidToPlayers);
-        const batchSize = 5;
-        for (let i = 0; i < tids.length; i += batchSize) {
-          const batch = tids.slice(i, i + batchSize);
-          const results = await Promise.all(batch.map(tid => this._matchupFetchRounds(tid)));
-          for (let j = 0; j < batch.length; j++) {
-            const rounds = results[j];
-            if (!rounds) { roundsFailed++; continue; }
-            roundsFetched++;
-            const targetPids = tidToPlayers[batch[j]];
-            for (const round of rounds) {
-              for (const table of (round.tables ?? [])) {
-                if (table.status !== 'Completed') continue;
-                const players = (table.players ?? []).filter(Boolean);
-                if (players.length < 2) continue;
-                const pod = {};
-                for (const p of players) {
-                  pod[p.id] = Object.keys(p.deckObj?.Commanders ?? {}).sort().join(' / ');
-                }
-                const targetAtTable = new Set([...targetPids].filter(pid => pid in pod));
-                if (targetAtTable.size === 0) continue;
-                const winnerId = table.winner_id || null;
-                const targetWon = winnerId && targetAtTable.has(winnerId);
-                for (const [pid, opp] of Object.entries(pod)) {
-                  if (targetAtTable.has(pid) || !opp) continue;
-                  if (!stats[opp]) stats[opp] = { pods: 0, wins: 0, draws: 0 };
-                  stats[opp].pods++;
-                  if (targetWon) stats[opp].wins++;
-                  if (!winnerId) stats[opp].draws++;
-                }
-              }
-            }
-          }
-          if (i + batchSize < tids.length) await new Promise(r => setTimeout(r, 1500));
-        }
-        return { stats, roundsFetched, roundsFailed };
       },
 
       matchupFor(name) {

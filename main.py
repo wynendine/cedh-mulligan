@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import httpx
+import asyncio
 import random
 import re
 import os
@@ -295,20 +296,110 @@ async def get_card_images(request: CardNamesRequest):
 
 
 
-@app.get("/api/topdeck-rounds")
-async def topdeck_rounds(tid: str):
-    """Proxy a single topdeck.gg tournament rounds request. Called per-tournament by the browser."""
+@app.get("/api/matchups")
+async def get_matchups(commander: str, time_period: str = "THREE_MONTHS"):
+    """Compute head-to-head matchup stats for a commander vs all opponents it has faced."""
+    valid = {"ONE_MONTH", "THREE_MONTHS", "SIX_MONTHS", "ONE_YEAR", "ALL_TIME"}
+    if time_period not in valid:
+        time_period = "THREE_MONTHS"
+
+    # Step 1: fetch tournament entries from edhtop16
+    gql_query = """
+    query GetEntries($name: String!, $timePeriod: TimePeriod!) {
+      commander(name: $name) {
+        entries(first: 100, sortBy: NEW, filters: { timePeriod: $timePeriod, minEventSize: 0 }) {
+          edges { node { player { topdeckProfile } tournament { TID } } }
+        }
+      }
+    }
+    """
     async with httpx.AsyncClient() as client:
         try:
-            resp = await client.get(
-                f"https://topdeck.gg/api/v2/tournaments/{tid}/rounds",
-                headers={"Authorization": TOPDECK_API_KEY},
+            resp = await client.post(
+                "https://edhtop16.com/api/graphql",
+                json={"query": gql_query, "variables": {"name": commander, "timePeriod": time_period}},
                 timeout=15.0,
             )
-            from fastapi.responses import Response
-            return Response(content=resp.content, status_code=resp.status_code, media_type="application/json")
+            resp.raise_for_status()
         except Exception as e:
-            raise HTTPException(status_code=502, detail=str(e))
+            raise HTTPException(status_code=502, detail=f"edhtop16 error: {e}")
+
+    edges = (resp.json().get("data") or {}).get("commander", {}).get("entries", {}).get("edges", []) or []
+
+    # Build TID → set of player profile IDs
+    tid_to_players: dict[str, set] = {}
+    for edge in edges:
+        node = edge.get("node", {})
+        tid = (node.get("tournament") or {}).get("TID")
+        pid = (node.get("player") or {}).get("topdeckProfile")
+        if tid and pid:
+            tid_to_players.setdefault(tid, set()).add(pid)
+
+    if not tid_to_players:
+        return {"matchups": {}, "tournaments": 0, "message": "no_entries"}
+
+    # Step 2: fetch round data concurrently for all tournaments
+    async def fetch_rounds(client: httpx.AsyncClient, tid: str):
+        try:
+            r = await client.get(
+                f"https://topdeck.gg/api/v2/tournaments/{tid}/rounds",
+                headers={"Authorization": TOPDECK_API_KEY},
+                timeout=12.0,
+            )
+            return tid, r.json() if r.status_code == 200 else None
+        except Exception:
+            return tid, None
+
+    stats: dict[str, dict] = {}
+    tids = list(tid_to_players.keys())
+    batch_size = 10
+    async with httpx.AsyncClient() as client:
+        for i in range(0, len(tids), batch_size):
+            batch = tids[i:i + batch_size]
+            results = await asyncio.gather(*[fetch_rounds(client, tid) for tid in batch])
+            for tid, rounds in results:
+                if not rounds:
+                    continue
+                target_pids = tid_to_players[tid]
+                for round_data in (rounds if isinstance(rounds, list) else []):
+                    for table in round_data.get("tables", []):
+                        if table.get("status") != "Completed":
+                            continue
+                        players = [p for p in table.get("players", []) if p]
+                        if len(players) < 2:
+                            continue
+                        pod = {
+                            p["id"]: " / ".join(sorted((p.get("deckObj") or {}).get("Commanders", {}).keys()))
+                            for p in players if p.get("id")
+                        }
+                        target_at_table = {pid for pid in target_pids if pid in pod}
+                        if not target_at_table:
+                            continue
+                        winner_id = table.get("winner_id")
+                        target_won = bool(winner_id and winner_id in target_at_table)
+                        for pid, opp in pod.items():
+                            if pid in target_at_table or not opp:
+                                continue
+                            if opp not in stats:
+                                stats[opp] = {"pods": 0, "wins": 0, "draws": 0}
+                            stats[opp]["pods"] += 1
+                            if target_won:
+                                stats[opp]["wins"] += 1
+                            if not winner_id:
+                                stats[opp]["draws"] += 1
+
+    # Filter by minimum GP threshold
+    MIN_GP = 25
+    result = {}
+    for opp, s in stats.items():
+        if s["pods"] >= MIN_GP:
+            result[opp] = {
+                "pods": s["pods"],
+                "win_rate": round(s["wins"] / s["pods"] * 100, 1),
+                "draw_rate": round(s["draws"] / s["pods"] * 100, 1),
+            }
+
+    return {"matchups": result, "tournaments": len(tid_to_players), "raw_opponents": len(stats)}
 
 
 @app.get("/")
