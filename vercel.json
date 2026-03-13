@@ -20,15 +20,11 @@
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "15mb",
-        "includeFiles": ["static/**"]
+        "includeFiles": ["static/**"],
+        "maxDuration": 60
       }
     }
   ],
-  "functions": {
-    "main.py": {
-      "maxDuration": 60
-    }
-  },
   "routes": [
     { "src": "/api/moxfield", "dest": "/api/moxfield.js" },
     { "src": "/api/topdeck-proxy", "dest": "/api/topdeck-proxy.js" },
