@@ -454,6 +454,11 @@ async def _compute_matchups(commander: str, time_period: str):
     return {"matchups": result, "tournaments": len(tid_to_players), "raw_opponents": len(stats)}
 
 
+@app.get("/api/version")
+async def version():
+    return {"version": "3157362", "static_dir": _STATIC_DIR, "html_exists": os.path.exists(os.path.join(_STATIC_DIR, "index.html"))}
+
+
 @app.get("/")
 async def root(v: str = None):
     from fastapi.responses import RedirectResponse
