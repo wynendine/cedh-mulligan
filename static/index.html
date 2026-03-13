@@ -693,7 +693,7 @@
         this.matchups = {};
         this.matchupsLoading = true;
         try {
-          const cacheKey = `matchups_v4|${this.commander}|${this.timePeriod}`;
+          const cacheKey = `matchups_v5|${this.commander}|${this.timePeriod}`;
           const cached = sessionStorage.getItem(cacheKey);
           if (cached) { this.matchups = JSON.parse(cached); return; }
 
