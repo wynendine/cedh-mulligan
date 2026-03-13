@@ -388,16 +388,14 @@ async def get_matchups(commander: str, time_period: str = "THREE_MONTHS"):
                             if not winner_id:
                                 stats[opp]["draws"] += 1
 
-    # Filter by minimum GP threshold
-    MIN_GP = 25
-    result = {}
-    for opp, s in stats.items():
-        if s["pods"] >= MIN_GP:
-            result[opp] = {
-                "pods": s["pods"],
-                "win_rate": round(s["wins"] / s["pods"] * 100, 1),
-                "draw_rate": round(s["draws"] / s["pods"] * 100, 1),
-            }
+    result = {
+        opp: {
+            "pods": s["pods"],
+            "win_rate": round(s["wins"] / s["pods"] * 100, 1),
+            "draw_rate": round(s["draws"] / s["pods"] * 100, 1),
+        }
+        for opp, s in stats.items()
+    }
 
     return {"matchups": result, "tournaments": len(tid_to_players), "raw_opponents": len(stats)}
 
