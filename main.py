@@ -296,6 +296,49 @@ async def get_card_images(request: CardNamesRequest):
 
 
 
+@app.get("/api/matchups-debug")
+async def get_matchups_debug(commander: str, time_period: str = "THREE_MONTHS"):
+    """Debug endpoint: just fetch edhtop16 entries to test basic connectivity."""
+    import traceback, sys
+    try:
+        gql_query = """
+        query GetEntries($name: String!, $timePeriod: TimePeriod!) {
+          commander(name: $name) {
+            entries(first: 100, sortBy: NEW, filters: { timePeriod: $timePeriod, minEventSize: 0 }) {
+              edges { node { player { topdeckProfile } tournament { TID } } }
+            }
+          }
+        }
+        """
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://edhtop16.com/api/graphql",
+                json={"query": gql_query, "variables": {"name": commander, "timePeriod": time_period}},
+                timeout=20.0,
+            )
+        edges = (resp.json().get("data") or {}).get("commander", {}).get("entries", {}).get("edges", []) or []
+        tid_to_players: dict[str, set] = {}
+        for edge in edges:
+            node = edge.get("node", {})
+            tid = (node.get("tournament") or {}).get("TID")
+            pid = (node.get("player") or {}).get("topdeckProfile")
+            if tid and pid:
+                tid_to_players.setdefault(tid, set()).add(pid)
+        # Fetch one round as a test
+        if tid_to_players:
+            tid = list(tid_to_players.keys())[0]
+            async with httpx.AsyncClient() as client:
+                r = await client.get(
+                    f"https://topdeck.gg/api/v2/tournaments/{tid}/rounds",
+                    headers={"Authorization": TOPDECK_API_KEY},
+                    timeout=12.0,
+                )
+            return {"status": "ok", "entries": len(edges), "tids": len(tid_to_players), "topdeck_status": r.status_code, "tid_tested": tid, "python": sys.version}
+        return {"status": "no_entries"}
+    except Exception as e:
+        return {"error": str(e), "trace": traceback.format_exc(), "python": sys.version}
+
+
 @app.get("/api/matchups")
 async def get_matchups(commander: str, time_period: str = "THREE_MONTHS"):
     """Compute head-to-head matchup stats for a commander vs all opponents it has faced."""
