@@ -219,26 +219,28 @@ def card_image_names(commander_name: str) -> list[str]:
 
 async def _fetch_images_fuzzy(names: list[str]) -> None:
     """Fetch and cache Scryfall images for a list of card names using fuzzy lookup.
-    Only caches successes — failed fetches are not stored so they are retried later.
+    Fetches all uncached names concurrently. Only caches successes.
     """
-    # Deduplicate while preserving order so each name is fetched at most once
     uncached = list(dict.fromkeys(n for n in names if n not in _image_cache))
     if not uncached:
         return
+
+    async def fetch_one(client: httpx.AsyncClient, name: str) -> None:
+        try:
+            r = await client.get(
+                "https://api.scryfall.com/cards/named",
+                params={"fuzzy": name},
+                timeout=10.0,
+            )
+            if r.status_code == 200:
+                url = extract_image_url(r.json())
+                if url:
+                    _image_cache[name] = url
+        except Exception:
+            pass  # Don't cache failures — allow retry on next request
+
     async with httpx.AsyncClient() as client:
-        for name in uncached:
-            try:
-                r = await client.get(
-                    "https://api.scryfall.com/cards/named",
-                    params={"fuzzy": name},
-                    timeout=8.0,
-                )
-                if r.status_code == 200:
-                    url = extract_image_url(r.json())
-                    if url:
-                        _image_cache[name] = url
-            except Exception:
-                pass  # Don't cache failures — allow retry on next request
+        await asyncio.gather(*[fetch_one(client, name) for name in uncached])
 
 
 @app.get("/api/pod")
