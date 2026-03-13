@@ -205,9 +205,14 @@
                 <span class="text-xs font-bold flex-shrink-0"
                   :class="seat.isYou ? 'text-purple-400' : 'text-gray-500'"
                   x-text="'S' + seat.seat"></span>
-                <span class="text-sm truncate"
-                  :class="seat.isYou ? 'text-purple-300' : 'text-gray-300'"
-                  x-text="seat.name.split(' / ')[0]"></span>
+                <div class="min-w-0">
+                  <div class="text-sm truncate"
+                    :class="seat.isYou ? 'text-purple-300' : 'text-gray-300'"
+                    x-text="seat.name.split(' / ')[0]"></div>
+                  <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ')"
+                    class="text-xs text-gray-500 truncate"
+                    x-text="'+ ' + seat.name.split(' / ')[1]"></div>
+                </div>
               </div>
               <div class="flex items-center gap-3 flex-shrink-0">
                 <template x-if="seat.isYou">
