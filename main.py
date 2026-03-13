@@ -380,7 +380,8 @@ async def _compute_matchups(commander: str, time_period: str):
                         if not target_at_table:
                             continue
                         winner_id = table.get("winner_id")
-                        target_won = bool(winner_id and winner_id in target_at_table)
+                        is_draw = not winner_id or winner_id == "Draw"
+                        target_won = bool(winner_id and winner_id != "Draw" and winner_id in target_at_table)
                         for pid, opp in pod.items():
                             if pid in target_at_table or not opp:
                                 continue
@@ -389,7 +390,7 @@ async def _compute_matchups(commander: str, time_period: str):
                             stats[opp]["pods"] += 1
                             if target_won:
                                 stats[opp]["wins"] += 1
-                            if not winner_id:
+                            if is_draw:
                                 stats[opp]["draws"] += 1
 
     result = {
