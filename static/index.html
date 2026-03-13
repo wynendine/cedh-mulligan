@@ -695,12 +695,12 @@
       async fetchMatchups() {
         this.matchups = {};
         this.matchupsError = '';
-        this.matchupsDebug = '';
+        this.matchupsDebug = `searching: ${this.commander}`;
         this.matchupsLoading = true;
         try {
           const cacheKey = `matchups_v3|${this.commander}|${this.timePeriod}`;
           const cached = sessionStorage.getItem(cacheKey);
-          if (cached) { this.matchups = JSON.parse(cached); return; }
+          if (cached) { this.matchups = JSON.parse(cached); this.matchupsDebug = 'cached'; return; }
 
           console.log('[matchups] commander:', this.commander, 'timePeriod:', this.timePeriod);
 
