@@ -207,9 +207,16 @@
               <div class="flex items-center gap-3 flex-shrink-0">
                 <template x-if="seat.isYou">
                   <div class="flex items-center gap-3">
-                    <div x-show="seat.win_rate !== null" class="text-xs flex gap-0.5">
-                      <span class="text-purple-400">WR:</span>
-                      <span class="text-purple-200" x-text="seat.win_rate + '%'"></span>
+                    <div x-show="matchupsLoading" class="text-xs text-gray-600">loading…</div>
+                    <div x-show="!matchupsLoading" class="flex items-center gap-3">
+                      <div x-show="seat.win_rate !== null" class="text-xs flex gap-0.5">
+                        <span class="text-purple-400">WR:</span>
+                        <span class="text-purple-200" x-text="seat.win_rate + '%'"></span>
+                      </div>
+                      <div x-show="commanderAvgDrawRate !== null" class="text-xs flex gap-0.5">
+                        <span class="text-purple-400">DR:</span>
+                        <span class="text-purple-200" x-text="commanderAvgDrawRate + '%'"></span>
+                      </div>
                     </div>
                   </div>
                 </template>
@@ -522,6 +529,13 @@
       // First mulligan is free in Commander: cardsToBottom = mulliganCount - 1
       get cardsToBottom() { return Math.max(0, this.mulliganCount - 1); },
       get selectionComplete() { return this.selectedIndices.length === this.cardsToBottom; },
+      get commanderAvgDrawRate() {
+        const entries = Object.values(this.matchups);
+        if (entries.length === 0) return null;
+        const totalPods = entries.reduce((sum, m) => sum + m.pods, 0);
+        if (totalPods === 0) return null;
+        return Math.round(entries.reduce((sum, m) => sum + m.pods * m.draw_rate, 0) / totalPods * 10) / 10;
+      },
       get handLabel() {
         const labels = [
           { text: 'First 7',   bg: 'rgba(20,83,45,0.6)',   fg: '#86efac' },
