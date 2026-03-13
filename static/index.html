@@ -703,10 +703,14 @@
 
           // Step 1: fetch tournament entries from edhtop16
           const tidToPlayers = await this._matchupFetchEntries();
-          if (Object.keys(tidToPlayers).length === 0) { this.matchupsError = 'No tournament entries found'; return; }
+          const tidCount = Object.keys(tidToPlayers).length;
+          if (tidCount === 0) { this.matchupsError = 'No tournament entries found'; return; }
+          this.matchupsError = `DEBUG: ${tidCount} tournaments found, fetching rounds…`;
 
           // Step 2: fetch round data and compute stats
           const stats = await this._matchupComputeStats(tidToPlayers);
+          const rawCount = Object.keys(stats).length;
+          this.matchupsError = `DEBUG: ${tidCount} tournaments, ${rawCount} raw opponents`;
 
           // Step 3: filter by min GP and build result
           const result = {};
@@ -719,6 +723,7 @@
               };
             }
           }
+          this.matchupsError = '';
           this.matchups = result;
           // Only cache non-empty results to avoid masking failures
           if (Object.keys(result).length > 0) {
