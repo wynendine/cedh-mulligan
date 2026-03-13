@@ -313,7 +313,10 @@ async def topdeck_rounds(tid: str):
 
 @app.get("/")
 async def root():
-    return FileResponse(os.path.join(_STATIC_DIR, "index.html"))
+    return FileResponse(
+        os.path.join(_STATIC_DIR, "index.html"),
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
+    )
 
 
 app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
