@@ -307,7 +307,7 @@ async def get_matchups(commander: str, time_period: str = "THREE_MONTHS"):
     gql_query = """
     query GetEntries($name: String!, $timePeriod: TimePeriod!) {
       commander(name: $name) {
-        entries(first: 100, sortBy: NEW, filters: { timePeriod: $timePeriod, minEventSize: 0 }) {
+        entries(first: 500, sortBy: NEW, filters: { timePeriod: $timePeriod, minEventSize: 0 }) {
           edges { node { player { topdeckProfile } tournament { TID } } }
         }
       }
