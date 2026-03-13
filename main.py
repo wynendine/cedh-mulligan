@@ -392,6 +392,19 @@ async def _compute_matchups(commander: str, time_period: str):
                                 stats[opp]["wins"] += 1
                             if is_draw:
                                 stats[opp]["draws"] += 1
+                        # Mirror match: multiple target players at the same table
+                        if len(target_at_table) > 1:
+                            mirror_name = next(
+                                (pod[pid] for pid in target_at_table if pid in pod and pod[pid]), None
+                            )
+                            if mirror_name:
+                                if mirror_name not in stats:
+                                    stats[mirror_name] = {"pods": 0, "wins": 0, "draws": 0}
+                                stats[mirror_name]["pods"] += 1
+                                if target_won:
+                                    stats[mirror_name]["wins"] += 1
+                                if is_draw:
+                                    stats[mirror_name]["draws"] += 1
 
     result = {
         opp: {
