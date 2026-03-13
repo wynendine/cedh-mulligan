@@ -296,60 +296,10 @@ async def get_card_images(request: CardNamesRequest):
 
 
 
-@app.get("/api/matchups-debug")
-async def get_matchups_debug(commander: str, time_period: str = "THREE_MONTHS"):
-    """Debug endpoint: just fetch edhtop16 entries to test basic connectivity."""
-    import traceback, sys
-    try:
-        gql_query = """
-        query GetEntries($name: String!, $timePeriod: TimePeriod!) {
-          commander(name: $name) {
-            entries(first: 100, sortBy: NEW, filters: { timePeriod: $timePeriod, minEventSize: 0 }) {
-              edges { node { player { topdeckProfile } tournament { TID } } }
-            }
-          }
-        }
-        """
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                "https://edhtop16.com/api/graphql",
-                json={"query": gql_query, "variables": {"name": commander, "timePeriod": time_period}},
-                timeout=20.0,
-            )
-        edges = (resp.json().get("data") or {}).get("commander", {}).get("entries", {}).get("edges", []) or []
-        tid_to_players: dict[str, set] = {}
-        for edge in edges:
-            node = edge.get("node", {})
-            tid = (node.get("tournament") or {}).get("TID")
-            pid = (node.get("player") or {}).get("topdeckProfile")
-            if tid and pid:
-                tid_to_players.setdefault(tid, set()).add(pid)
-        # Fetch one round as a test
-        if tid_to_players:
-            tid = list(tid_to_players.keys())[0]
-            async with httpx.AsyncClient() as client:
-                r = await client.get(
-                    f"https://topdeck.gg/api/v2/tournaments/{tid}/rounds",
-                    headers={"Authorization": TOPDECK_API_KEY},
-                    timeout=12.0,
-                )
-            return {"status": "ok", "entries": len(edges), "tids": len(tid_to_players), "topdeck_status": r.status_code, "tid_tested": tid, "python": sys.version}
-        return {"status": "no_entries"}
-    except Exception as e:
-        return {"error": str(e), "trace": traceback.format_exc(), "python": sys.version}
-
-
 @app.get("/api/matchups")
 async def get_matchups(commander: str, time_period: str = "THREE_MONTHS"):
     """Compute head-to-head matchup stats for a commander vs all opponents it has faced."""
-    import traceback
-    try:
-        return await _compute_matchups(commander, time_period)
-    except HTTPException:
-        raise
-    except Exception as e:
-        tb = traceback.format_exc()
-        raise HTTPException(status_code=500, detail=f"matchups error: {e}\n{tb}")
+    return await _compute_matchups(commander, time_period)
 
 
 async def _compute_matchups(commander: str, time_period: str):
@@ -401,7 +351,7 @@ async def _compute_matchups(commander: str, time_period: str):
                 timeout=12.0,
             )
             return tid, r.json() if r.status_code == 200 else None
-        except Exception:
+        except BaseException:
             return tid, None
 
     stats: dict[str, dict] = {}
@@ -454,18 +404,8 @@ async def _compute_matchups(commander: str, time_period: str):
     return {"matchups": result, "tournaments": len(tid_to_players), "raw_opponents": len(stats)}
 
 
-@app.get("/api/version")
-async def version():
-    return {"version": "3157362", "static_dir": _STATIC_DIR, "html_exists": os.path.exists(os.path.join(_STATIC_DIR, "index.html"))}
-
-
 @app.get("/")
-async def root(v: str = None):
-    from fastapi.responses import RedirectResponse
-    if not v:
-        r = RedirectResponse(url="/?v=3", status_code=302)
-        r.headers["Cache-Control"] = "no-store"
-        return r
+async def root():
     return FileResponse(
         os.path.join(_STATIC_DIR, "index.html"),
         headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
