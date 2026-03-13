@@ -299,6 +299,17 @@ async def get_card_images(request: CardNamesRequest):
 @app.get("/api/matchups")
 async def get_matchups(commander: str, time_period: str = "THREE_MONTHS"):
     """Compute head-to-head matchup stats for a commander vs all opponents it has faced."""
+    import traceback
+    try:
+        return await _compute_matchups(commander, time_period)
+    except HTTPException:
+        raise
+    except Exception as e:
+        tb = traceback.format_exc()
+        raise HTTPException(status_code=500, detail=f"matchups error: {e}\n{tb}")
+
+
+async def _compute_matchups(commander: str, time_period: str):
     valid = {"ONE_MONTH", "THREE_MONTHS", "SIX_MONTHS", "ONE_YEAR", "ALL_TIME"}
     if time_period not in valid:
         time_period = "THREE_MONTHS"
@@ -318,7 +329,7 @@ async def get_matchups(commander: str, time_period: str = "THREE_MONTHS"):
             resp = await client.post(
                 "https://edhtop16.com/api/graphql",
                 json={"query": gql_query, "variables": {"name": commander, "timePeriod": time_period}},
-                timeout=15.0,
+                timeout=20.0,
             )
             resp.raise_for_status()
         except Exception as e:
@@ -339,9 +350,9 @@ async def get_matchups(commander: str, time_period: str = "THREE_MONTHS"):
         return {"matchups": {}, "tournaments": 0, "message": "no_entries"}
 
     # Step 2: fetch round data concurrently for all tournaments
-    async def fetch_rounds(client: httpx.AsyncClient, tid: str):
+    async def fetch_rounds(c: httpx.AsyncClient, tid: str):
         try:
-            r = await client.get(
+            r = await c.get(
                 f"https://topdeck.gg/api/v2/tournaments/{tid}/rounds",
                 headers={"Authorization": TOPDECK_API_KEY},
                 timeout=12.0,
@@ -352,7 +363,7 @@ async def get_matchups(commander: str, time_period: str = "THREE_MONTHS"):
 
     stats: dict[str, dict] = {}
     tids = list(tid_to_players.keys())
-    batch_size = 10
+    batch_size = 20
     async with httpx.AsyncClient() as client:
         for i in range(0, len(tids), batch_size):
             batch = tids[i:i + batch_size]
