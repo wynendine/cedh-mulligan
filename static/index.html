@@ -710,12 +710,11 @@
           // Step 2: fetch round data and compute stats
           const stats = await this._matchupComputeStats(tidToPlayers);
           const rawCount = Object.keys(stats).length;
-          this.matchupsError = `DEBUG: ${tidCount} tournaments, ${rawCount} raw opponents`;
 
-          // Step 3: filter by min GP and build result
+          // Step 3: filter by min GP and build result (threshold=1 for debug)
           const result = {};
           for (const [opp, s] of Object.entries(stats)) {
-            if (s.pods >= 25) {
+            if (s.pods >= 1) {
               result[opp] = {
                 pods: s.pods,
                 win_rate: Math.round(s.wins / s.pods * 1000) / 10,
@@ -723,7 +722,7 @@
               };
             }
           }
-          this.matchupsError = '';
+          this.matchupsError = `DEBUG: ${tidCount} tournaments, ${rawCount} opponents (threshold=1)`;
           this.matchups = result;
           // Only cache non-empty results to avoid masking failures
           if (Object.keys(result).length > 0) {
