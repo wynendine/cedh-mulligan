@@ -18,6 +18,7 @@ _image_cache: dict = {}
 _commander_cache: dict = {}
 
 CARD_BACK = "https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg"
+TOPDECK_API_KEY = "7454dc38-e7af-438b-b690-fadaeef45d0d"
 
 
 class DeckRequest(BaseModel):
@@ -292,6 +293,22 @@ async def get_card_images(request: CardNamesRequest):
     return {name: _image_cache.get(name.split(" / ")[0].strip()) for name in request.names}
 
 
+
+
+@app.get("/api/topdeck-rounds")
+async def topdeck_rounds(tid: str):
+    """Proxy a single topdeck.gg tournament rounds request. Called per-tournament by the browser."""
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.get(
+                f"https://topdeck.gg/api/v2/tournaments/{tid}/rounds",
+                headers={"Authorization": TOPDECK_API_KEY},
+                timeout=15.0,
+            )
+            from fastapi.responses import Response
+            return Response(content=resp.content, status_code=resp.status_code, media_type="application/json")
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=str(e))
 
 
 @app.get("/")

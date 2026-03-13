@@ -764,7 +764,7 @@
 
       async _matchupFetchRounds(tid) {
         try {
-          const r = await fetch(`/api/topdeck-proxy?tid=${encodeURIComponent(tid)}`);
+          const r = await fetch(`/api/topdeck-rounds?tid=${encodeURIComponent(tid)}`);
           return r.ok ? await r.json() : null;
         } catch { return null; }
       },
