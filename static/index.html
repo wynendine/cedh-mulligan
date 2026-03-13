@@ -169,12 +169,16 @@
                 <template x-if="podMulligans.length > 0">
                   <div x-data="{ pm: podMulligans.find(p => p.seat === seat.seat) }">
                     <div x-show="pm && podDecidingSeat === pm.seat && !pm.isYou"
-                      class="text-xs leading-tight text-gray-500 animate-pulse"
+                      class="text-xs leading-tight animate-pulse"
+                      :style="{ color: handLabelColor(pm.mulliganCount) }"
                       x-text="handLabelText(pm.mulliganCount)"></div>
-                    <div x-show="pm && pm.kept" class="text-xs leading-tight text-green-600 font-semibold"
+                    <div x-show="pm && pm.kept"
+                      class="text-xs leading-tight font-semibold"
+                      :style="{ color: handLabelColor(pm.mulliganCount) }"
                       x-text="'Kept ' + handLabelText(pm.mulliganCount)"></div>
                     <div x-show="pm && !pm.kept && !(podDecidingSeat === pm.seat && !pm.isYou)"
-                      class="text-xs leading-tight text-gray-400"
+                      class="text-xs leading-tight"
+                      :style="{ color: handLabelColor(pm.mulliganCount) }"
                       x-text="handLabelText(pm.mulliganCount)"></div>
                   </div>
                 </template>
@@ -537,6 +541,11 @@
       handLabelText(n) {
         const texts = ['First 7', 'Second 7', 'Mull to 6', 'Mull to 5', 'Mull to 4', 'Mull to 3', 'Mull to 2', 'Mull to 1'];
         return texts[Math.min(n, texts.length - 1)];
+      },
+      handLabelColor(n) {
+        if (n <= 1) return '#86efac';   // green
+        if (n <= 3) return '#fde047';   // yellow
+        return '#fca5a5';               // red
       },
       get handLabel() {
         const labels = [
