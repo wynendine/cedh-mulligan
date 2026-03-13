@@ -249,15 +249,13 @@ async def get_pod(time_period: str = "THREE_MONTHS", exclude: str = "", commande
     await _load_commander_cache(time_period)
 
     commanders = _commander_cache[time_period]
-    exclude_lower = exclude.lower()
-    available = [c for c in commanders if exclude_lower not in c["name"].lower()]
 
-    if len(available) < 3:
+    if len(commanders) < 3:
         raise HTTPException(status_code=500, detail="Not enough commanders found in meta data.")
 
-    weights = [c["meta_share"] for c in available]
-    # Allow duplicates — the same commander can appear multiple times in a real pod
-    opponents = [dict(c) for c in random.choices(available, weights=weights, k=3)]
+    weights = [c["meta_share"] for c in commanders]
+    # Allow duplicates — mirror matches can happen in real pods
+    opponents = [dict(c) for c in random.choices(commanders, weights=weights, k=3)]
 
     # Collect all image names needed: opponents + user's commander
     opponent_img_names = [n for opp in opponents for n in card_image_names(opp["name"])]
