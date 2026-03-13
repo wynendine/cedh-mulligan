@@ -403,7 +403,12 @@ async def get_matchups(commander: str, time_period: str = "THREE_MONTHS"):
 
 
 @app.get("/")
-async def root():
+async def root(v: str = None):
+    from fastapi.responses import RedirectResponse
+    if not v:
+        r = RedirectResponse(url="/?v=3", status_code=302)
+        r.headers["Cache-Control"] = "no-store"
+        return r
     return FileResponse(
         os.path.join(_STATIC_DIR, "index.html"),
         headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
