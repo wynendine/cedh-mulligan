@@ -7,6 +7,7 @@ import asyncio
 import random
 import re
 import os
+import time
 from typing import Optional
 
 _STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -17,6 +18,8 @@ app = FastAPI()
 _deck_cache: dict = {}
 _image_cache: dict = {}
 _commander_cache: dict = {}
+_matchup_cache: dict = {}  # key -> (result, timestamp)
+_MATCHUP_TTL = 3600  # 1 hour
 
 CARD_BACK = "https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg"
 TOPDECK_API_KEY = os.environ.get("TOPDECK_API_KEY", "")
@@ -351,6 +354,11 @@ async def _compute_matchups(commander: str, time_period: str):
     if time_period not in valid:
         time_period = "THREE_MONTHS"
 
+    cache_key = f"{commander}|{time_period}"
+    cached = _matchup_cache.get(cache_key)
+    if cached and time.time() - cached[1] < _MATCHUP_TTL:
+        return cached[0]
+
     # Step 1: fetch tournament entries from edhtop16
     gql_query = """
     query GetEntries($name: String!, $timePeriod: TimePeriod!) {
@@ -400,7 +408,7 @@ async def _compute_matchups(commander: str, time_period: str):
 
     stats: dict[str, dict] = {}
     tids = list(tid_to_players.keys())
-    batch_size = 20
+    batch_size = 50
     async with httpx.AsyncClient() as client:
         for i in range(0, len(tids), batch_size):
             batch = tids[i:i + batch_size]
@@ -459,7 +467,9 @@ async def _compute_matchups(commander: str, time_period: str):
         for opp, s in stats.items()
     }
 
-    return {"matchups": result, "tournaments": len(tid_to_players), "raw_opponents": len(stats)}
+    out = {"matchups": result, "tournaments": len(tid_to_players), "raw_opponents": len(stats)}
+    _matchup_cache[cache_key] = (out, time.time())
+    return out
 
 
 @app.get("/")
