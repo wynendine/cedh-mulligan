@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-const TOPDECK_API_KEY = '7454dc38-e7af-438b-b690-fadaeef45d0d';
+const TOPDECK_API_KEY = process.env.TOPDECK_API_KEY || '';
 
 export default async function handler(request) {
   const { searchParams } = new URL(request.url);

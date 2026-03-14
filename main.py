@@ -19,7 +19,7 @@ _image_cache: dict = {}
 _commander_cache: dict = {}
 
 CARD_BACK = "https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg"
-TOPDECK_API_KEY = "7454dc38-e7af-438b-b690-fadaeef45d0d"
+TOPDECK_API_KEY = os.environ.get("TOPDECK_API_KEY", "")
 
 
 class DeckRequest(BaseModel):
@@ -294,6 +294,50 @@ async def get_card_images(request: CardNamesRequest):
     return {name: _image_cache.get(name.split(" / ")[0].strip()) for name in request.names}
 
 
+
+
+@app.get("/api/moxfield")
+async def get_moxfield_deck(url: str):
+    import re as _re
+    m = _re.search(r"moxfield\.com/decks/([A-Za-z0-9_-]+)", url)
+    if not m:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Invalid Moxfield URL.")
+    deck_id = m.group(1)
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"https://api2.moxfield.com/v2/decks/all/{deck_id}",
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                "Accept": "application/json",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Referer": "https://www.moxfield.com/",
+            },
+            timeout=10.0,
+        )
+    if not resp.is_success:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=502, detail=f"Moxfield returned {resp.status_code}.")
+    data = resp.json()
+    commanders = [
+        e["card"]["name"]
+        for e in (data.get("commanders") or {}).values()
+        for _ in range(e.get("quantity", 1))
+    ]
+    mainboard = [
+        e["card"]["name"]
+        for e in (data.get("mainboard") or {}).values()
+        for _ in range(e.get("quantity", 1))
+    ]
+    if not mainboard and not commanders:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Deck appears empty or private.")
+    return {
+        "commander": " / ".join(commanders) or "Unknown Commander",
+        "cards": mainboard,
+        "card_count": len(mainboard),
+        "name": data.get("name", ""),
+    }
 
 
 @app.get("/api/matchups")
