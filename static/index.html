@@ -211,6 +211,10 @@
                   <div class="flex items-center">
                     <div x-show="matchupsLoading" class="text-xs text-gray-600 w-36 text-right">loading…</div>
                     <div x-show="!matchupsLoading" class="flex items-center">
+                      <div x-show="commanderTotalPods !== null" class="text-xs w-12 text-right flex gap-0.5 justify-end">
+                        <span class="text-purple-400">GP:</span>
+                        <span class="text-purple-200" x-text="commanderTotalPods"></span>
+                      </div>
                       <div x-show="seat.win_rate !== null" class="text-xs w-16 text-right flex gap-0.5 justify-end">
                         <span class="text-purple-400">WR:</span>
                         <span class="text-purple-200" x-text="seat.win_rate + '%'"></span>
@@ -534,6 +538,11 @@
         const totalPods = entries.reduce((sum, m) => sum + m.pods, 0);
         if (totalPods === 0) return null;
         return Math.round(entries.reduce((sum, m) => sum + m.pods * m.draw_rate, 0) / totalPods * 10) / 10;
+      },
+      get commanderTotalPods() {
+        const entries = Object.values(this.matchups);
+        if (entries.length === 0) return null;
+        return entries.reduce((sum, m) => sum + m.pods, 0) || null;
       },
       handLabelText(n) {
         const texts = ['First 7', 'Second 7', 'Mull to 6', 'Mull to 5', 'Mull to 4', 'Mull to 3', 'Mull to 2', 'Mull to 1'];
