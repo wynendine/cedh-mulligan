@@ -210,7 +210,7 @@
                 <template x-if="seat.isYou">
                   <div class="flex items-center">
                     <div x-show="matchupsLoading" class="text-xs text-gray-600 w-44 text-right">loading…</div>
-                    <div x-show="!matchupsLoading && commanderTotalPods !== null" class="flex items-center">
+                    <div x-show="!matchupsLoading && commanderTournaments !== null" class="flex items-center">
                       <div class="text-xs w-16 text-right flex gap-0.5 justify-end">
                         <span class="text-purple-400">GP:</span>
                         <span class="text-purple-200" x-text="commanderTotalPods"></span>
@@ -516,6 +516,7 @@
       // Matchup data
       matchups: {},        // {normalizedOpponentName: {pods, win_rate, draw_rate}}
       matchupsLoading: false,
+      commanderTournaments: null,
 
       // Hand
       hand: [],
@@ -540,9 +541,7 @@
         return Math.round(entries.reduce((sum, m) => sum + m.pods * m.draw_rate, 0) / totalPods * 10) / 10;
       },
       get commanderTotalPods() {
-        const entries = Object.values(this.matchups);
-        if (entries.length === 0) return null;
-        return entries.reduce((sum, m) => sum + m.pods, 0) || null;
+        return this.commanderTournaments;
       },
       handLabelText(n) {
         const texts = ['First 7', 'Second 7', 'Mull to 6', 'Mull to 5', 'Mull to 4', 'Mull to 3', 'Mull to 2', 'Mull to 1'];
@@ -722,18 +721,25 @@
 
       async fetchMatchups() {
         this.matchups = {};
+        this.commanderTournaments = null;
         this.matchupsLoading = true;
         try {
-          const cacheKey = `matchups_v6|${this.commander}|${this.timePeriod}`;
+          const cacheKey = `matchups_v7|${this.commander}|${this.timePeriod}`;
           const cached = sessionStorage.getItem(cacheKey);
-          if (cached) { this.matchups = JSON.parse(cached); return; }
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            this.matchups = parsed.matchups || {};
+            this.commanderTournaments = parsed.tournaments ?? null;
+            return;
+          }
 
           const r = await fetch(`/api/matchups?commander=${encodeURIComponent(this.commander)}&time_period=${this.timePeriod}`);
           if (!r.ok) throw new Error(`matchups error: ${r.status}`);
           const data = await r.json();
           this.matchups = data.matchups || {};
+          this.commanderTournaments = data.tournaments ?? null;
           if (Object.keys(this.matchups).length > 0) {
-            sessionStorage.setItem(cacheKey, JSON.stringify(this.matchups));
+            sessionStorage.setItem(cacheKey, JSON.stringify({ matchups: this.matchups, tournaments: this.commanderTournaments }));
           }
         } catch(e) {
           // silently fail — opponents just show —
