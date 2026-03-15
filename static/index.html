@@ -192,11 +192,11 @@
           <template x-for="seat in seats" :key="seat.seat">
             <div class="flex items-center justify-between rounded-xl px-3 py-2"
               :class="seat.isYou ? 'bg-gray-800' : 'bg-gray-900/50'">
-              <div class="flex items-center gap-2 min-w-0 flex-1">
+              <div class="flex items-center gap-2 overflow-hidden flex-1">
                 <span class="text-xs font-bold flex-shrink-0"
                   :class="seat.isYou ? 'text-purple-400' : 'text-gray-500'"
                   x-text="'S' + seat.seat"></span>
-                <div class="min-w-0">
+                <div class="overflow-hidden">
                   <div class="text-sm truncate"
                     :class="seat.isYou ? 'text-purple-300' : 'text-gray-300'"
                     x-text="seat.name.split(' / ')[0]"></div>
@@ -206,7 +206,7 @@
                     x-text="'+ ' + seat.name.split(' / ')[1]"></div>
                 </div>
               </div>
-              <div class="flex items-center gap-2 flex-shrink-0 w-36 justify-end">
+              <div class="flex items-center gap-2 flex-shrink-0 w-40 justify-end">
                 <template x-if="seat.isYou">
                   <div class="flex items-center gap-2">
                     <div x-show="matchupsLoading" class="text-xs text-gray-600">loading…</div>
