@@ -190,7 +190,7 @@
         </div>
         <div x-show="!commandersCollapsed" class="flex flex-col gap-1">
           <template x-for="seat in seats" :key="seat.seat">
-            <div class="flex items-center justify-between rounded-xl px-3 py-2"
+            <div class="flex items-center rounded-xl px-3 py-2"
               :class="seat.isYou ? 'bg-gray-800' : 'bg-gray-900/50'">
               <div class="flex items-center gap-2 overflow-hidden flex-1">
                 <span class="text-xs font-bold flex-shrink-0"
