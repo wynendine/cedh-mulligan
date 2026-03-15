@@ -145,15 +145,22 @@
               </div>
               <!-- Label with mulligan status -->
               <div class="text-center mt-1 w-full px-0.5">
-                <!-- Commander name: always 1 line -->
-                <div class="text-xs font-semibold leading-tight truncate"
-                  :class="seat.isYou ? 'text-purple-400' : 'text-gray-300'"
-                  x-text="seat.isYou ? 'You' : seat.name.split(' / ')[0]"></div>
-                <!-- Partner name: only renders if partner exists -->
-                <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ') && !seat.isYou"
-                  class="text-xs leading-tight truncate text-gray-300"
-                  x-text="'+ ' + seat.name.split(' / ')[1]"></div>
-                <!-- Mulligan label: immediately below -->
+                <!-- 2-line name/partner area: same height for all seats -->
+                <div style="height:1.875rem; overflow:hidden;">
+                  <!-- Non-partner or You: name wraps up to 2 lines -->
+                  <div x-show="!(seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ')) || seat.isYou"
+                    class="text-xs font-semibold leading-tight text-center"
+                    :class="seat.isYou ? 'text-purple-400' : 'text-gray-300'"
+                    x-text="seat.isYou ? 'You' : seat.name.split(' / ')[0]"></div>
+                  <!-- Partner: name line 1 + partner line 2 -->
+                  <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ') && !seat.isYou">
+                    <div class="text-xs font-semibold leading-tight truncate text-gray-300"
+                      x-text="seat.name.split(' / ')[0]"></div>
+                    <div class="text-xs leading-tight truncate text-gray-300"
+                      x-text="'+ ' + seat.name.split(' / ')[1]"></div>
+                  </div>
+                </div>
+                <!-- Mulligan label: always on row 3 -->
                 <div class="flex items-center justify-center mt-0.5">
                   <span x-show="podMulligans.length && podMulligans.find(p=>p.seat===seat.seat) && podDecidingSeat===seat.seat && !seat.isYou"
                     class="text-xs animate-pulse"
