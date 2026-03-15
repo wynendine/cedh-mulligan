@@ -467,7 +467,7 @@ async def _compute_matchups(commander: str, time_period: str):
         for opp, s in stats.items()
     }
 
-    out = {"matchups": result, "tournaments": len(tid_to_players), "raw_opponents": len(stats)}
+    out = {"matchups": result, "tournaments": len(tid_to_players), "entries": len(edges), "raw_opponents": len(stats)}
     _matchup_cache[cache_key] = (out, time.time())
     return out
 
