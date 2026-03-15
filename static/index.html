@@ -119,7 +119,7 @@
         <!-- Card grid with mulligan decisions -->
         <div x-show="seats.length > 0" class="grid grid-cols-4 gap-2">
           <template x-for="seat in seats" :key="seat.seat">
-            <div class="flex flex-col items-center cursor-pointer"
+            <div class="flex flex-col items-center cursor-pointer h-full"
               @click="!seat.image_url2 && (modalCard = {name: seat.name, image_url: seat.image_url})">
               <div class="flex items-center gap-0.5 mb-1 h-4">
                 <span class="text-xs font-bold"
@@ -143,21 +143,21 @@
                   :src="seat.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
                   :alt="seat.name" class="card-img card-shadow w-full" />
               </div>
-              <!-- Label with mulligan status -->
-              <div class="text-center mt-1 w-full px-0.5">
-                <!-- Lines 1–2: commander name, fixed 2-line height -->
-                <div style="height:2.5rem; overflow:hidden;" class="flex items-start justify-center">
+              <!-- Label with mulligan status: name grows, partner+mulligan pinned to bottom -->
+              <div class="text-center mt-1 w-full px-0.5 flex flex-col flex-1">
+                <!-- Name: grows to fill available space, pushing bottom rows down -->
+                <div class="flex-1 flex items-start justify-center pt-0.5">
                   <div class="text-xs font-semibold leading-tight text-center"
                     :class="seat.isYou ? 'text-purple-400' : 'text-gray-300'"
                     x-text="seat.isYou ? 'You' : seat.name.split(' / ')[0]"></div>
                 </div>
-                <!-- Line 3: partner name, fixed 1-line height (blank if none) -->
-                <div style="height:1.25rem; overflow:hidden;" class="flex items-center justify-center">
+                <!-- Partner name: fixed height, blank if none -->
+                <div style="height:1.25rem;" class="flex items-center justify-center overflow-hidden">
                   <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ') && !seat.isYou"
                     class="text-xs leading-tight truncate text-gray-300"
                     x-text="'+ ' + seat.name.split(' / ')[1]"></div>
                 </div>
-                <!-- Line 4: mulligan label, fixed 1-line height -->
+                <!-- Mulligan label: fixed height -->
                 <div style="height:1.25rem;" class="flex items-center justify-center">
                   <span x-show="podMulligans.length && podMulligans.find(p=>p.seat===seat.seat) && podDecidingSeat===seat.seat && !seat.isYou"
                     class="text-xs animate-pulse"
