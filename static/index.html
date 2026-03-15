@@ -206,16 +206,16 @@
                     x-text="'+ ' + seat.name.split(' / ')[1]"></div>
                 </div>
               </div>
-              <div class="flex items-center gap-2 flex-shrink-0 w-40 justify-end">
+              <div class="flex-shrink-0 flex items-center">
                 <template x-if="seat.isYou">
-                  <div class="flex items-center gap-2">
-                    <div x-show="matchupsLoading" class="text-xs text-gray-600">loading…</div>
-                    <div x-show="!matchupsLoading" class="flex items-center gap-2">
-                      <div x-show="seat.win_rate !== null" class="text-xs flex gap-0.5">
+                  <div class="flex items-center">
+                    <div x-show="matchupsLoading" class="text-xs text-gray-600 w-36 text-right">loading…</div>
+                    <div x-show="!matchupsLoading" class="flex items-center">
+                      <div x-show="seat.win_rate !== null" class="text-xs w-16 text-right flex gap-0.5 justify-end">
                         <span class="text-purple-400">WR:</span>
                         <span class="text-purple-200" x-text="seat.win_rate + '%'"></span>
                       </div>
-                      <div x-show="commanderAvgDrawRate !== null" class="text-xs flex gap-0.5">
+                      <div x-show="commanderAvgDrawRate !== null" class="text-xs w-16 text-right flex gap-0.5 justify-end">
                         <span class="text-purple-400">DR:</span>
                         <span class="text-purple-200" x-text="commanderAvgDrawRate + '%'"></span>
                       </div>
@@ -223,23 +223,23 @@
                   </div>
                 </template>
                 <template x-if="!seat.isYou">
-                  <div class="flex items-center gap-2">
-                    <div x-show="matchupsLoading" class="text-xs text-gray-600">loading…</div>
-                    <div x-show="!matchupsLoading && matchupFor(seat.name)" class="flex items-center gap-2">
-                      <div class="text-xs flex gap-0.5">
+                  <div class="flex items-center">
+                    <div x-show="matchupsLoading" class="text-xs text-gray-600 w-36 text-right">loading…</div>
+                    <div x-show="!matchupsLoading && matchupFor(seat.name)" class="flex items-center">
+                      <div class="text-xs w-12 text-right flex gap-0.5 justify-end">
                         <span class="text-gray-300">GP:</span>
                         <span class="text-gray-400" x-text="matchupFor(seat.name)?.pods"></span>
                       </div>
-                      <div class="text-xs flex gap-0.5">
+                      <div class="text-xs w-16 text-right flex gap-0.5 justify-end">
                         <span class="text-gray-300">WR:</span>
                         <span class="text-gray-400" x-text="matchupFor(seat.name)?.win_rate + '%'"></span>
                       </div>
-                      <div class="text-xs flex gap-0.5">
+                      <div class="text-xs w-16 text-right flex gap-0.5 justify-end">
                         <span class="text-gray-300">DR:</span>
                         <span class="text-gray-400" x-text="matchupFor(seat.name)?.draw_rate + '%'"></span>
                       </div>
                     </div>
-                    <div x-show="!matchupsLoading && !matchupFor(seat.name)" class="text-xs text-gray-600">—</div>
+                    <div x-show="!matchupsLoading && !matchupFor(seat.name)" class="text-xs text-gray-600 w-44 text-right">—</div>
                   </div>
                 </template>
               </div>
