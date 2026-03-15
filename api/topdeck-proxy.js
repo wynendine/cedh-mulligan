@@ -1,5 +1,6 @@
 export const config = { runtime: 'edge' };
 
+// IMPORTANT: if this repo is ever made public, rotate the TOPDECK_API_KEY in Vercel env vars first
 const TOPDECK_API_KEY = process.env.TOPDECK_API_KEY || '';
 
 export default async function handler(request) {

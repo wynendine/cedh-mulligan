@@ -22,6 +22,7 @@ _matchup_cache: dict = {}  # key -> (result, timestamp)
 _MATCHUP_TTL = 3600  # 1 hour
 
 CARD_BACK = "https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg"
+# IMPORTANT: if this repo is ever made public, rotate the TOPDECK_API_KEY in Vercel env vars first
 TOPDECK_API_KEY = os.environ.get("TOPDECK_API_KEY", "")
 
 
