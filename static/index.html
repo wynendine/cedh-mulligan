@@ -145,14 +145,20 @@
               </div>
               <!-- Label with mulligan status -->
               <div class="text-center mt-1 w-full px-0.5">
-                <div class="text-xs font-semibold leading-tight truncate"
-                  :class="seat.isYou ? 'text-purple-400' : 'text-gray-300'"
-                  x-text="seat.isYou ? 'You' : seat.name.split(' / ')[0]"></div>
-                <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ') && !seat.isYou"
-                  class="text-xs leading-tight truncate text-gray-300"
-                  x-text="'+ ' + seat.name.split(' / ')[1]"></div>
-                <!-- Fixed-height row so all 4 mulligan labels sit on the same line -->
-                <div class="h-4 flex items-center justify-center mt-0.5">
+                <!-- Lines 1–2: commander name, fixed 2-line height -->
+                <div style="height:2.5rem; overflow:hidden;" class="flex items-start justify-center">
+                  <div class="text-xs font-semibold leading-tight text-center"
+                    :class="seat.isYou ? 'text-purple-400' : 'text-gray-300'"
+                    x-text="seat.isYou ? 'You' : seat.name.split(' / ')[0]"></div>
+                </div>
+                <!-- Line 3: partner name, fixed 1-line height (blank if none) -->
+                <div style="height:1.25rem; overflow:hidden;" class="flex items-center justify-center">
+                  <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ') && !seat.isYou"
+                    class="text-xs leading-tight truncate text-gray-300"
+                    x-text="'+ ' + seat.name.split(' / ')[1]"></div>
+                </div>
+                <!-- Line 4: mulligan label, fixed 1-line height -->
+                <div style="height:1.25rem;" class="flex items-center justify-center">
                   <span x-show="podMulligans.length && podMulligans.find(p=>p.seat===seat.seat) && podDecidingSeat===seat.seat && !seat.isYou"
                     class="text-xs animate-pulse"
                     :style="{ color: handLabelColor(podMulligans.find(p=>p.seat===seat.seat)?.mulliganCount) }"
