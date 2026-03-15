@@ -206,10 +206,10 @@
                     x-text="'+ ' + seat.name.split(' / ')[1]"></div>
                 </div>
               </div>
-              <div class="flex-shrink-0 flex items-center">
+              <div class="flex-shrink-0 w-48 flex items-center justify-end">
                 <template x-if="seat.isYou">
-                  <div class="flex items-center">
-                    <div x-show="matchupsLoading" class="text-xs text-gray-600 w-44 text-right">loading…</div>
+                  <div class="w-48 flex items-center justify-end">
+                    <div x-show="matchupsLoading" class="text-xs text-gray-600">loading…</div>
                     <div x-show="!matchupsLoading && commanderAvgDrawRate !== null" class="flex items-center">
                       <div class="w-16"></div>
                       <div class="text-xs w-16 text-right flex gap-0.5 justify-end">
@@ -224,8 +224,8 @@
                   </div>
                 </template>
                 <template x-if="!seat.isYou">
-                  <div class="flex items-center">
-                    <div x-show="matchupsLoading" class="text-xs text-gray-600 w-36 text-right">loading…</div>
+                  <div class="w-48 flex items-center justify-end">
+                    <div x-show="matchupsLoading" class="text-xs text-gray-600">loading…</div>
                     <div x-show="!matchupsLoading && matchupFor(seat.name)" class="flex items-center">
                       <div class="text-xs w-16 text-right flex gap-0.5 justify-end">
                         <span class="text-gray-300">GP:</span>
@@ -240,7 +240,7 @@
                         <span class="text-gray-400" x-text="matchupFor(seat.name)?.draw_rate + '%'"></span>
                       </div>
                     </div>
-                    <div x-show="!matchupsLoading && !matchupFor(seat.name)" class="text-xs text-gray-600 w-44 text-right">—</div>
+                    <div x-show="!matchupsLoading && !matchupFor(seat.name)" class="text-xs text-gray-600">—</div>
                   </div>
                 </template>
               </div>
