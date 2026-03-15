@@ -126,7 +126,7 @@
                   :class="seat.isYou ? 'text-purple-400' : 'text-gray-500'"
                   x-text="'S' + seat.seat"></span>
               </div>
-              <div class="w-full" :class="seat.isYou ? 'ring-2 ring-purple-500 rounded-xl' : ''">
+              <div class="w-full">
                 <!-- Partner pair -->
                 <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ')" class="relative w-full" style="padding-bottom: 140%;">
                   <img :src="seat.image_url2 || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
@@ -134,14 +134,14 @@
                     style="width: 92%; top: 4%; left: 4%; z-index: 1; transform: rotate(9deg); transform-origin: 50% 100%;"
                     @click.stop="modalCard = {name: seat.name.split(' / ')[1], image_url: seat.image_url2}" />
                   <img :src="seat.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
-                    :alt="seat.name" class="card-img card-shadow absolute"
+                    :alt="seat.name" :class="seat.isYou ? 'ring-2 ring-purple-500' : ''" class="card-img card-shadow absolute"
                     style="width: 92%; top: 0; left: 0; z-index: 2;"
                     @click.stop="modalCard = {name: seat.name.split(' / ')[0], image_url: seat.image_url}" />
                 </div>
                 <!-- Single commander -->
                 <img x-show="!(seat.name && seat.name.includes(' / ') && !seat.name.includes(' // '))"
                   :src="seat.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
-                  :alt="seat.name" class="card-img card-shadow w-full" />
+                  :alt="seat.name" :class="seat.isYou ? 'ring-2 ring-purple-500' : ''" class="card-img card-shadow w-full" />
               </div>
               <!-- Label with mulligan status -->
               <div class="text-center mt-1 w-full px-0.5">
