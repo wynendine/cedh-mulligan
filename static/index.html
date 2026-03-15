@@ -145,26 +145,27 @@
               </div>
               <!-- Label with mulligan status -->
               <div class="text-center mt-1 w-full px-0.5">
-                <div class="flex items-center justify-center gap-1 overflow-hidden">
-                  <span class="text-xs font-semibold leading-tight truncate min-w-0"
-                    :class="seat.isYou ? 'text-purple-400' : 'text-gray-300'"
-                    x-text="seat.isYou ? 'You' : seat.name.split(' / ')[0]"></span>
-                  <span x-show="podMulligans.length && podMulligans.find(p=>p.seat===seat.seat) && podDecidingSeat===seat.seat && !seat.isYou"
-                    class="text-xs leading-tight animate-pulse flex-shrink-0"
-                    :style="{ color: handLabelColor(podMulligans.find(p=>p.seat===seat.seat)?.mulliganCount) }"
-                    x-text="handLabelText(podMulligans.find(p=>p.seat===seat.seat)?.mulliganCount)"></span>
-                  <span x-show="podMulligans.length && podMulligans.find(p=>p.seat===seat.seat)?.kept"
-                    class="text-xs leading-tight font-semibold flex-shrink-0"
-                    :style="{ color: handLabelColor(podMulligans.find(p=>p.seat===seat.seat)?.mulliganCount) }"
-                    x-text="'Kept ' + handLabelText(podMulligans.find(p=>p.seat===seat.seat)?.mulliganCount)"></span>
-                  <span x-show="podMulligans.length && !podMulligans.find(p=>p.seat===seat.seat)?.kept && !(podDecidingSeat===seat.seat && !seat.isYou)"
-                    class="text-xs leading-tight flex-shrink-0"
-                    :style="{ color: handLabelColor(podMulligans.find(p=>p.seat===seat.seat)?.mulliganCount) }"
-                    x-text="handLabelText(podMulligans.find(p=>p.seat===seat.seat)?.mulliganCount)"></span>
-                </div>
+                <div class="text-xs font-semibold leading-tight truncate"
+                  :class="seat.isYou ? 'text-purple-400' : 'text-gray-300'"
+                  x-text="seat.isYou ? 'You' : seat.name.split(' / ')[0]"></div>
                 <div x-show="seat.name && seat.name.includes(' / ') && !seat.name.includes(' // ') && !seat.isYou"
                   class="text-xs leading-tight truncate text-gray-300"
                   x-text="'+ ' + seat.name.split(' / ')[1]"></div>
+                <!-- Fixed-height row so all 4 mulligan labels sit on the same line -->
+                <div class="h-4 flex items-center justify-center mt-0.5">
+                  <span x-show="podMulligans.length && podMulligans.find(p=>p.seat===seat.seat) && podDecidingSeat===seat.seat && !seat.isYou"
+                    class="text-xs animate-pulse"
+                    :style="{ color: handLabelColor(podMulligans.find(p=>p.seat===seat.seat)?.mulliganCount) }"
+                    x-text="handLabelText(podMulligans.find(p=>p.seat===seat.seat)?.mulliganCount)"></span>
+                  <span x-show="podMulligans.length && podMulligans.find(p=>p.seat===seat.seat)?.kept"
+                    class="text-xs font-semibold"
+                    :style="{ color: handLabelColor(podMulligans.find(p=>p.seat===seat.seat)?.mulliganCount) }"
+                    x-text="'Kept ' + handLabelText(podMulligans.find(p=>p.seat===seat.seat)?.mulliganCount)"></span>
+                  <span x-show="podMulligans.length && !podMulligans.find(p=>p.seat===seat.seat)?.kept && !(podDecidingSeat===seat.seat && !seat.isYou)"
+                    class="text-xs"
+                    :style="{ color: handLabelColor(podMulligans.find(p=>p.seat===seat.seat)?.mulliganCount) }"
+                    x-text="handLabelText(podMulligans.find(p=>p.seat===seat.seat)?.mulliganCount)"></span>
+                </div>
               </div>
             </div>
           </template>
