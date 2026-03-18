@@ -308,29 +308,23 @@
       <!-- ── HAND CARDS ── -->
       <div
         x-show="!handLoading"
-        class="flex pb-4"
-        style="width: 342px; margin: 0 auto;"
+        class="flex flex-wrap justify-center gap-2 pb-4"
       >
         <template x-for="(card, idx) in hand" :key="idx">
           <div
-            class="flex-shrink-0 cursor-pointer"
+            class="cursor-pointer"
             :class="{
               'card-selected rounded-xl': selectedIndices.includes(idx),
               'opacity-40': handState === 'selecting' && selectedIndices.length >= cardsToBottom && !selectedIndices.includes(idx)
             }"
-            :style="{
-              width: '90px',
-              marginRight: idx < hand.length - 1 ? '-48px' : '0',
-              position: 'relative',
-              zIndex: idx + 1
-            }"
+            style="width: 80px;"
             @click="tapCard(idx)"
           >
             <img
               :src="card.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
               :alt="card.name"
               class="card-img card-shadow w-full"
-              style="min-height: 126px; background:#1f2937;"
+              style="min-height: 112px; background:#1f2937;"
             />
           </div>
         </template>
