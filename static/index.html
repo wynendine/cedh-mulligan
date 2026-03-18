@@ -469,7 +469,16 @@
         class="card-img card-shadow w-full"
       />
       <p class="text-center text-gray-300 mt-3 text-sm" x-text="modalCard?.name"></p>
-      <button @click="modalCard = null" class="w-full mt-3 text-gray-500 hover:text-gray-300 text-sm py-2">Tap anywhere to close</button>
+      <!-- Select/deselect button when choosing cards to bottom -->
+      <template x-if="handState === 'selecting' && modalCardIdx !== null">
+        <button
+          @click="toggleSelect(modalCardIdx); modalCard = null; modalCardIdx = null"
+          class="w-full mt-3 rounded-2xl py-3 font-semibold text-sm transition-colors"
+          :class="selectedIndices.includes(modalCardIdx) ? 'bg-amber-700 hover:bg-amber-600' : 'bg-purple-700 hover:bg-purple-600'"
+          x-text="selectedIndices.includes(modalCardIdx) ? 'Remove from Bottom' : 'Put on Bottom'"
+        ></button>
+      </template>
+      <button @click="modalCard = null; modalCardIdx = null" class="w-full mt-3 text-gray-500 hover:text-gray-300 text-sm py-2">Tap anywhere to close</button>
     </div>
   </div>
 
@@ -481,6 +490,7 @@
       loading: false,
       error: '',
       modalCard: null,
+      modalCardIdx: null,
 
       // Inputs
       decklist: '',
@@ -798,11 +808,9 @@
       },
 
       tapCard(idx) {
-        if (this.handState === 'selecting') {
-          this.toggleSelect(idx);
-        } else if (this.handState !== 'scrying') {
-          this.modalCard = this.hand[idx];
-        }
+        if (this.handState === 'scrying') return;
+        this.modalCardIdx = idx;
+        this.modalCard = this.hand[idx];
       },
 
       toggleSelect(idx) {
