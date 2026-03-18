@@ -314,15 +314,12 @@
         <template x-for="(card, idx) in hand" :key="idx">
           <div
             class="flex-shrink-0 cursor-pointer"
-            :class="{
-              'card-selected rounded-xl': selectedIndices.includes(idx),
-              'opacity-40': handState === 'selecting' && selectedIndices.length >= cardsToBottom && !selectedIndices.includes(idx)
-            }"
+            :class="{ 'card-selected rounded-xl': selectedIndices.includes(idx) }"
             :style="{
               width: '90px',
               marginRight: idx < hand.length - 1 ? '-48px' : '0',
               position: 'relative',
-              zIndex: idx + 1,
+              zIndex: handState === 'selecting' && selectedIndices.includes(idx) ? 20 + idx : idx + 1,
               transform: handState === 'selecting'
                 ? (selectedIndices.includes(idx) ? 'translateY(-12px)' : 'translateY(6px)')
                 : 'none'
@@ -335,6 +332,12 @@
               class="card-img card-shadow w-full"
               style="min-height:126px; background:#1f2937;"
             />
+            <!-- Dark overlay on non-selected cards during selection — self-contained, no bleed -->
+            <div
+              x-show="handState === 'selecting' && !selectedIndices.includes(idx)"
+              class="absolute inset-0 bg-black/60 cursor-pointer"
+              style="border-radius: 4.75% / 3.5%;"
+            ></div>
           </div>
         </template>
       </div>
