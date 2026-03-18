@@ -315,15 +315,13 @@
           <div
             class="flex-shrink-0 cursor-pointer"
             :class="{
-              'card-selected rounded-xl': selectedIndices.includes(idx),
               'opacity-40': handState === 'selecting' && selectedIndices.length >= cardsToBottom && !selectedIndices.includes(idx)
             }"
             :style="{
               width: '90px',
               marginRight: idx < hand.length - 1 ? '-48px' : '0',
               position: 'relative',
-              zIndex: idx + 1,
-              transform: selectedIndices.includes(idx) ? 'translateY(-12px)' : 'none'
+              zIndex: idx + 1
             }"
             @click="tapCard(idx)"
           >
@@ -331,7 +329,7 @@
               :src="card.image_url || 'https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg'"
               :alt="card.name"
               class="card-img card-shadow w-full"
-              style="min-height: 126px; background:#1f2937;"
+              :style="selectedIndices.includes(idx) ? 'min-height:126px; background:#1f2937; box-shadow: inset 0 0 0 4px #f59e0b, 0 4px 12px rgba(0,0,0,0.6);' : 'min-height:126px; background:#1f2937;'"
             />
           </div>
         </template>
