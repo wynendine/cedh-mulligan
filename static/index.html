@@ -334,7 +334,7 @@
             />
             <!-- Dark overlay on non-selected cards during selection — self-contained, no bleed -->
             <div
-              x-show="handState === 'selecting' && !selectedIndices.includes(idx)"
+              x-show="handState === 'selecting' && selectedIndices.length >= cardsToBottom && !selectedIndices.includes(idx)"
               class="absolute inset-0 bg-black/60 cursor-pointer"
               style="border-radius: 4.75% / 3.5%;"
             ></div>
