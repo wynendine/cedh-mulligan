@@ -9,6 +9,9 @@ import re
 import os
 import time
 from typing import Optional
+from dotenv import load_dotenv
+
+load_dotenv(".env.local")  # loads TOPDECK_API_KEY locally; no-op in production
 
 _STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
