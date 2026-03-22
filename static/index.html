@@ -730,7 +730,7 @@
         this.matchupsLoading = true;
         try {
           // IMPORTANT: bump the version prefix (matchups_vN) any time the cached data shape changes
-          const cacheKey = `matchups_v8|${this.commander}|${this.timePeriod}`;
+          const cacheKey = `matchups_v9|${this.commander}|${this.timePeriod}`;
           const cached = sessionStorage.getItem(cacheKey);
           if (cached) {
             const parsed = JSON.parse(cached);
