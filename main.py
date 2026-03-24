@@ -347,6 +347,11 @@ async def get_moxfield_deck(url: str):
     }
 
 
+@app.get("/api/debug-key")
+async def debug_key():
+    key = TOPDECK_API_KEY
+    return {"key_length": len(key), "key_prefix": key[:8] if key else "MISSING"}
+
 @app.get("/api/matchups")
 async def get_matchups(commander: str, time_period: str = "THREE_MONTHS"):
     """Compute head-to-head matchup stats for a commander vs all opponents it has faced."""
