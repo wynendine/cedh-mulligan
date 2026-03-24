@@ -26,7 +26,7 @@ _MATCHUP_TTL = 3600  # 1 hour
 
 CARD_BACK = "https://cards.scryfall.io/normal/back/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg"
 # IMPORTANT: if this repo is ever made public, rotate the TOPDECK_API_KEY in Vercel env vars first
-TOPDECK_API_KEY = os.environ.get("TOPDECK_API_KEY", "")
+TOPDECK_API_KEY = os.environ.get("TOPDECK_API_KEY", "").strip()
 
 
 class DeckRequest(BaseModel):
@@ -347,21 +347,6 @@ async def get_moxfield_deck(url: str):
     }
 
 
-@app.get("/api/debug-key")
-async def debug_key():
-    key = TOPDECK_API_KEY
-    tid = "new-york-state-battle-royale-cedh"
-    async with httpx.AsyncClient() as c:
-        try:
-            r = await c.get(f"https://topdeck.gg/api/v2/tournaments/{tid}/rounds", headers={"Authorization": key}, timeout=12)
-            rounds = r.json() if r.status_code == 200 else None
-            tables = rounds[0].get("tables", []) if rounds else []
-            sample = tables[0] if tables else {}
-            player = (sample.get("players") or [None])[0] or {}
-            deck_keys = list((player.get("deckObj") or {}).keys())
-        except Exception as e:
-            return {"key_prefix": key[:8], "error": str(e)}
-    return {"key_prefix": key[:8], "rounds_status": r.status_code, "tables_in_r1": len(tables), "deck_keys": deck_keys}
 
 @app.get("/api/matchups")
 async def get_matchups(commander: str, time_period: str = "THREE_MONTHS"):
