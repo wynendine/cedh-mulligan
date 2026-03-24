@@ -359,6 +359,10 @@ async def _compute_matchups(commander: str, time_period: str):
     if time_period not in valid:
         time_period = "THREE_MONTHS"
 
+    # edhtop16 requires partner names in alphabetical order
+    if " / " in commander and " // " not in commander:
+        commander = " / ".join(sorted(commander.split(" / ")))
+
     cache_key = f"{commander}|{time_period}"
     cached = _matchup_cache.get(cache_key)
     if cached and time.time() - cached[1] < _MATCHUP_TTL:
