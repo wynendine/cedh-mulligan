@@ -472,7 +472,8 @@ async def _compute_matchups(commander: str, time_period: str):
     }
 
     out = {"matchups": result, "tournaments": len(tid_to_players), "entries": len(edges), "raw_opponents": len(stats)}
-    _matchup_cache[cache_key] = (out, time.time())
+    if result:  # only cache non-empty results so transient failures don't get stuck
+        _matchup_cache[cache_key] = (out, time.time())
     return out
 
 
