@@ -350,7 +350,18 @@ async def get_moxfield_deck(url: str):
 @app.get("/api/debug-key")
 async def debug_key():
     key = TOPDECK_API_KEY
-    return {"key_length": len(key), "key_prefix": key[:8] if key else "MISSING"}
+    tid = "new-york-state-battle-royale-cedh"
+    async with httpx.AsyncClient() as c:
+        try:
+            r = await c.get(f"https://topdeck.gg/api/v2/tournaments/{tid}/rounds", headers={"Authorization": key}, timeout=12)
+            rounds = r.json() if r.status_code == 200 else None
+            tables = rounds[0].get("tables", []) if rounds else []
+            sample = tables[0] if tables else {}
+            player = (sample.get("players") or [None])[0] or {}
+            deck_keys = list((player.get("deckObj") or {}).keys())
+        except Exception as e:
+            return {"key_prefix": key[:8], "error": str(e)}
+    return {"key_prefix": key[:8], "rounds_status": r.status_code, "tables_in_r1": len(tables), "deck_keys": deck_keys}
 
 @app.get("/api/matchups")
 async def get_matchups(commander: str, time_period: str = "THREE_MONTHS"):
